@@ -213,3 +213,49 @@ add_task(async function test_group_collapse_reassigns_shortcut_hints() {
     await SpecialPowers.popPrefEnv();
   }
 });
+
+add_task(async function test_hints_follow_non_character_shortcut_remapping() {
+  await gZenWorkspaces.promiseInitialized;
+  const key = document.getElementById("key_selectTab1");
+  const previous = new Map(
+    ["key", "keycode", "modifiers"].map(attribute => [
+      attribute,
+      key.getAttribute(attribute),
+    ])
+  );
+  await SpecialPowers.pushPrefEnv({
+    set: [["zen.tabs.show-shortcut-hints", true]],
+  });
+  try {
+    key.removeAttribute("key");
+    key.setAttribute("keycode", "VK_F8");
+    key.setAttribute("modifiers", "accel");
+    const target = gBrowser.visibleTabs[0];
+    await TestUtils.waitForCondition(
+      () => shortcutHint(target) === "F8",
+      "A remapped function key remains visible on its target tab"
+    );
+    Assert.equal(
+      target
+        .querySelector(".zen-tab-shortcut-hint")
+        .getAttribute("tooltiptext"),
+      ShortcutUtils.prettifyShortcut(key),
+      "The tooltip includes the full shortcut with modifiers"
+    );
+    key.removeAttribute("keycode");
+    key.setAttribute("key", "1");
+    await TestUtils.waitForCondition(
+      () => shortcutHint(target) === "1",
+      "Remapping back to a character restores its hint"
+    );
+  } finally {
+    for (const [attribute, value] of previous) {
+      if (value === null) {
+        key.removeAttribute(attribute);
+      } else {
+        key.setAttribute(attribute, value);
+      }
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});
