@@ -52,6 +52,34 @@ panel {
   --arrowpanel-background: var(--zen-colors-primary);
 }
 
+/* Match the other browser panels without recoloring the page thumbnails. */
+@media (forced-colors: none) and (prefers-contrast: no-preference) {
+  #ctrlTab-panel {
+    --panel-background-color: var(--arrowpanel-background);
+    --panel-text-color: light-dark(
+      var(--zen-branding-dark),
+      var(--zen-branding-paper)
+    );
+    --panel-border-color: var(--zen-colors-border);
+  }
+
+  .ctrlTab-preview,
+  #ctrlTab-showAll {
+    text-shadow: none;
+  }
+
+  #ctrlTab-showAll {
+    background-color: var(--button-background-color);
+    color: var(--button-text-color);
+  }
+
+  .ctrlTab-preview:focus > .ctrlTab-preview-inner,
+  #ctrlTab-showAll:focus {
+    background-color: var(--toolbarbutton-background-color-hover);
+    border-color: var(--focus-outline-color);
+  }
+}
+
 /* app menu */
 .addon-banner-item,
 .panel-banner-item {

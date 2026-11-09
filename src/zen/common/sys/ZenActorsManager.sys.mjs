@@ -19,6 +19,32 @@ let JSPROCESSACTORS = {};
  * available at https://firefox-source-docs.mozilla.org/dom/ipc/jsactors.html
  */
 let JSWINDOWACTORS = {
+  ZenInternalTheme: {
+    parent: {
+      esModuleURI: "resource:///actors/ZenInternalThemeParent.sys.mjs",
+    },
+    child: {
+      esModuleURI: "resource:///actors/ZenInternalThemeChild.sys.mjs",
+      events: {
+        DOMDocElementInserted: { capture: true },
+      },
+    },
+    matches: [
+      "about:addons",
+      "about:config",
+      "about:downloads",
+      "about:logins",
+      "about:memory",
+      "about:networking",
+      "about:performance",
+      "about:preferences",
+      "about:processes",
+      "about:profiles",
+      "about:sessionrestore",
+      "about:support",
+      "about:welcomeback",
+    ].flatMap(page => [page, `${page}?*`]),
+  },
   ZenModsMarketplace: {
     parent: {
       esModuleURI: "resource:///actors/ZenModsMarketplaceParent.sys.mjs",

@@ -1,0 +1,53 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+@media (forced-colors: none) and (prefers-contrast: no-preference) {
+  :root {
+    background-color: var(--zen-colors-tertiary);
+    color: var(--zen-branding-bg-reverse);
+  }
+
+  #topBar,
+  #placesToolbar,
+  #detailsPane {
+    background-color: var(--zen-dialog-background);
+    color: inherit;
+    border-color: var(--zen-colors-border);
+  }
+
+  #viewGroup > radio {
+    color: inherit;
+    border-radius: var(--button-border-radius);
+
+    &:hover {
+      background-color: var(--button-background-color-hover);
+    }
+
+    &[selected] {
+      background-color: var(--button-background-color-primary);
+      color: var(--button-text-color-primary);
+    }
+  }
+
+  tree {
+    background-color: var(--zen-dialog-background);
+    color: inherit;
+    border-color: var(--zen-colors-border);
+  }
+
+  treechildren::-moz-tree-row(selected) {
+    background-color: var(--button-background-color-primary);
+    color: var(--button-text-color-primary);
+  }
+
+  treechildren::-moz-tree-image(selected),
+  treechildren::-moz-tree-twisty(selected),
+  treechildren::-moz-tree-cell-text(selected) {
+    color: var(--button-text-color-primary);
+  }
+
+  treechildren::-moz-tree-row(current, focus) {
+    outline-color: var(--focus-outline-color);
+  }
+}

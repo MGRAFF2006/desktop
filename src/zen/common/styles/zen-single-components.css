@@ -283,6 +283,33 @@
   --toolbar-background-color: var(--arrowpanel-background);
 }
 
+/* Firefox's find bar otherwise uses platform dialog colors, which can disagree
+ * with the workspace scheme. Keep its not-found/flash colors and focus outline. */
+@media (forced-colors: none) and (prefers-contrast: no-preference) {
+  #browser findbar {
+    color-scheme: var(--toolbar-color-scheme);
+    color: light-dark(var(--zen-branding-dark), var(--zen-branding-paper));
+    background-color: var(--zen-dialog-background);
+    border-top-color: var(--zen-colors-border);
+    --toolbar-field-background-color: var(--zen-colors-input-bg);
+    --toolbar-field-text-color: light-dark(
+      var(--zen-branding-dark),
+      var(--zen-branding-paper)
+    );
+    --toolbar-field-background-color-focus: var(--zen-colors-tertiary);
+    --toolbar-field-text-color-focus: var(--toolbar-field-text-color);
+    --toolbar-field-border-color-focus: var(--focus-outline-color);
+
+    & .findbar-textbox {
+      border-radius: var(--toolbarbutton-border-radius);
+    }
+  }
+
+  #customization-footer {
+    border-top-color: var(--zen-colors-border);
+  }
+}
+
 /* Site Data popup */
 
 #zen-unified-site-data-panel {
