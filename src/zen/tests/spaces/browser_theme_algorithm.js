@@ -140,3 +140,61 @@ add_task(async function test_AccentChangeKeepsEditorStateAndRepaintsWindow() {
     picker.currentOpacity = previousOpacity;
   }
 });
+
+add_task(async function test_AdvancedThemePreferencesRefreshAllWorkspaces() {
+  await gZenWorkspaces.promiseInitialized;
+  const picker = gZenThemePicker;
+  const active = gZenWorkspaces.getActiveWorkspace();
+  const previousTheme = active.theme;
+  const inactive = {
+    uuid: "test-theme-advanced-preferences",
+    theme: gradientTheme("complementary", 40),
+  };
+  active.theme = gradientTheme("analogous", 60);
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      ["zen.theme.use-system-colors", false],
+      ["zen.theme.dark-mode-bias", "0.2"],
+    ],
+  });
+  try {
+    picker.refreshWorkspaceThemes();
+    // Prime the lazy getter even on platforms without translucent windows.
+    void picker.darkModeBias;
+    for (const [pref, value] of [
+      ["zen.theme.use-system-colors", true],
+      ["zen.theme.dark-mode-bias", "0.8"],
+    ]) {
+      const beforeActive = picker.getGradientForWorkspace(active);
+      const beforeInactive = picker.getGradientForWorkspace(inactive);
+      await SpecialPowers.pushPrefEnv({ set: [[pref, value]] });
+      try {
+        const afterActive = picker.getGradientForWorkspace(active);
+        Assert.notEqual(
+          afterActive,
+          beforeActive,
+          `${pref} invalidates the active workspace palette`
+        );
+        Assert.notEqual(
+          picker.getGradientForWorkspace(inactive),
+          beforeInactive,
+          `${pref} invalidates inactive workspace palettes`
+        );
+        Assert.equal(
+          document.documentElement.style.getPropertyValue(
+            "--zen-primary-color"
+          ),
+          afterActive.primaryColor,
+          `${pref} repaints the active window`
+        );
+      } finally {
+        await SpecialPowers.popPrefEnv();
+      }
+    }
+  } finally {
+    await SpecialPowers.popPrefEnv();
+    active.theme = previousTheme;
+    picker.invalidateGradientCache(inactive.uuid);
+    picker.refreshWorkspaceThemes();
+  }
+});
