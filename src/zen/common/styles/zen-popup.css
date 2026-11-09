@@ -70,6 +70,7 @@ panel {
 
   #ctrlTab-showAll {
     background-color: var(--button-background-color);
+    color: var(--button-text-color);
   }
 
   .ctrlTab-preview:focus > .ctrlTab-preview-inner,
