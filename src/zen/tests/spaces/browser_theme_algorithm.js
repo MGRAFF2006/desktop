@@ -43,3 +43,100 @@ add_task(async function test_RenderingAnotherSpaceKeepsTheAlgorithm() {
 
   picker.invalidateGradientCache(other.uuid);
 });
+
+add_task(async function test_SchemeChangeRefreshesInactiveWorkspaceThemes() {
+  await gZenWorkspaces.promiseInitialized;
+  const picker = gZenThemePicker;
+  const inactive = {
+    uuid: "test-theme-inactive-scheme",
+    theme: { gradientColors: [], opacity: 0.5 },
+  };
+  await SpecialPowers.pushPrefEnv({
+    set: [["zen.view.window.scheme", 1]],
+  });
+  try {
+    const light = picker.getGradientForWorkspace(inactive);
+    Assert.ok(!light.isDarkMode, "The inactive space starts in light mode");
+    await SpecialPowers.pushPrefEnv({
+      set: [["zen.view.window.scheme", 0]],
+    });
+    try {
+      const dark = picker.getGradientForWorkspace(inactive);
+      Assert.ok(dark.isDarkMode, "The inactive space follows the new scheme");
+      Assert.notEqual(
+        dark.gradient,
+        light.gradient,
+        "Its gradient is refreshed"
+      );
+      Assert.notEqual(
+        dark.paletteStyles["--toolbox-textcolor"],
+        light.paletteStyles["--toolbox-textcolor"],
+        "Its text palette is refreshed"
+      );
+    } finally {
+      await SpecialPowers.popPrefEnv();
+    }
+  } finally {
+    await SpecialPowers.popPrefEnv();
+    picker.invalidateGradientCache(inactive.uuid);
+  }
+});
+
+add_task(async function test_AccentChangeKeepsEditorStateAndRepaintsWindow() {
+  await gZenWorkspaces.promiseInitialized;
+  const picker = gZenThemePicker;
+  const workspace = gZenWorkspaces.getActiveWorkspace();
+  const previousTheme = workspace.theme;
+  const previousAlgorithm = picker.useAlgo;
+  const previousOpacity = picker.currentOpacity;
+  workspace.theme = { gradientColors: [], opacity: 0.5 };
+  picker.refreshWorkspaceThemes();
+  picker.useAlgo = "analogous";
+  picker.currentOpacity = 0.73;
+  const themeBefore = JSON.stringify(workspace.theme);
+  await SpecialPowers.pushPrefEnv({
+    set: [["zen.theme.accent-color", "#2468ac"]],
+  });
+  try {
+    const before = picker.getGradientForWorkspace(workspace);
+    await SpecialPowers.pushPrefEnv({
+      set: [["zen.theme.accent-color", "#ac6824"]],
+    });
+    try {
+      const after = picker.getGradientForWorkspace(workspace);
+      Assert.notEqual(
+        before.primaryColor,
+        after.primaryColor,
+        "The accent is refreshed"
+      );
+      Assert.equal(
+        document.documentElement.style.getPropertyValue("--zen-primary-color"),
+        after.primaryColor,
+        "The active window uses the refreshed workspace accent"
+      );
+      Assert.equal(
+        picker.useAlgo,
+        "analogous",
+        "The edited algorithm is preserved"
+      );
+      Assert.equal(
+        picker.currentOpacity,
+        0.73,
+        "The edited opacity is preserved"
+      );
+      Assert.equal(
+        JSON.stringify(workspace.theme),
+        themeBefore,
+        "Refreshing does not save picker controls into the workspace"
+      );
+    } finally {
+      await SpecialPowers.popPrefEnv();
+    }
+  } finally {
+    await SpecialPowers.popPrefEnv();
+    workspace.theme = previousTheme;
+    picker.refreshWorkspaceThemes();
+    picker.useAlgo = previousAlgorithm;
+    picker.currentOpacity = previousOpacity;
+  }
+});

@@ -17,6 +17,8 @@ support-files = [
 
 ["browser_tab_renamer.js"]
 
+["browser_theme_modifier.js"]
+
 ["browser_toasts.js"]
 
 ["browser_zen_commands.js"]
