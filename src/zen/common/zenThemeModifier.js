@@ -148,7 +148,8 @@
       if (this._inMainBrowserWindow) {
         return;
       }
-      const scheme = window.docShell?.usePrivateBrowsing
+      const scheme = window.docShell?.QueryInterface(Ci.nsILoadContext)
+        .usePrivateBrowsing
         ? 0
         : Services.prefs.getIntPref("zen.view.window.scheme", 2);
       if (this._forcedColors.matches || ![0, 1].includes(scheme)) {

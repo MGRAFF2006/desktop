@@ -182,3 +182,37 @@ add_task(async function test_page_info_and_library_follow_theme_preferences() {
     await SpecialPowers.popPrefEnv();
   }
 });
+
+add_task(async function test_private_page_info_keeps_dark_scheme() {
+  await SpecialPowers.pushPrefEnv({ set: [["zen.view.window.scheme", 1]] });
+  const privateWindow = await BrowserTestUtils.openNewBrowserWindow({
+    private: true,
+  });
+  let dialog;
+  try {
+    const url = "chrome://browser/content/pageinfo/pageInfo.xhtml";
+    const loaded = BrowserTestUtils.domWindowOpenedAndLoaded(
+      null,
+      win => win.document.documentURI === url
+    );
+    dialog = privateWindow.openDialog(url, "", "chrome,dialog=no,resizable", {
+      browser: privateWindow.gBrowser.selectedBrowser,
+    });
+    await loaded;
+    await dialog.document.l10n.ready;
+    Assert.ok(
+      dialog.docShell.QueryInterface(Ci.nsILoadContext).usePrivateBrowsing
+    );
+    Assert.equal(
+      dialog.document.documentElement.style.colorScheme,
+      "dark",
+      "Private Page Info keeps the private browser's dark scheme"
+    );
+  } finally {
+    if (dialog) {
+      await BrowserTestUtils.closeWindow(dialog);
+    }
+    await BrowserTestUtils.closeWindow(privateWindow);
+    await SpecialPowers.popPrefEnv();
+  }
+});
