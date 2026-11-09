@@ -227,3 +227,9 @@ zen-split-view-shortcut-unsplit = Close Split View
 zen-new-empty-split-view-shortcut = New Empty Split View
 zen-close-all-unpinned-tabs-shortcut = Close All Unpinned Tabs
 zen-duplicate-tab-shortcut = Duplicate Tab
+
+zen-tabs-show-shortcut-hints =
+    .label = Show tab keyboard shortcut hints
+zen-tabs-fade-unloaded-favicons =
+    .label = Dim favicons on restored or automatically unloaded tabs
+    .tooltiptext = Manually unloaded tabs keep their existing indicator when this is off.

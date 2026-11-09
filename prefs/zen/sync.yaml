@@ -72,3 +72,9 @@
 
 - name: services.sync.prefs.sync.zen.view.enable-loading-indicator
   value: true
+
+- name: services.sync.prefs.sync.zen.tabs.show-shortcut-hints
+  value: true
+
+- name: services.sync.prefs.sync.browser.tabs.fadeOutUnloadedTabs
+  value: true

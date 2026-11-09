@@ -45,22 +45,6 @@ let JSWINDOWACTORS = {
       "about:welcomeback",
     ].flatMap(page => [page, `${page}?*`]),
   },
-  ZenModsMarketplace: {
-    parent: {
-      esModuleURI: "resource:///actors/ZenModsMarketplaceParent.sys.mjs",
-    },
-    child: {
-      esModuleURI: "resource:///actors/ZenModsMarketplaceChild.sys.mjs",
-      events: {
-        DOMContentLoaded: {},
-      },
-    },
-    safeForUntrustedWebProcess: true,
-    matches: [
-      ...Services.prefs.getStringPref("zen.injections.match-urls").split(","),
-      "about:preferences",
-    ],
-  },
   ZenGlance: {
     parent: {
       esModuleURI: "resource:///actors/ZenGlanceParent.sys.mjs",

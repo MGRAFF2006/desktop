@@ -1,0 +1,33 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+.zen-tab-shortcut-hint {
+  flex: 0 0 auto;
+  margin: 0 4px;
+  min-width: 1ch;
+  font-size: 0.75em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: inherit;
+}
+
+:root:not([zen-sidebar-expanded="true"]) .zen-tab-shortcut-hint,
+.tabbrowser-tab[zen-essential] .zen-tab-shortcut-hint {
+  position: absolute;
+  inset-inline-end: 1px;
+  bottom: 1px;
+  margin: 0;
+  padding-inline: 2px;
+  border-radius: 3px;
+  background: var(--zen-dialog-background);
+  color: var(--zen-branding-bg-reverse);
+  font-size: 9px;
+  line-height: 12px;
+  pointer-events: none;
+
+  @media (forced-colors: active) {
+    background: Canvas;
+    color: CanvasText;
+  }
+}

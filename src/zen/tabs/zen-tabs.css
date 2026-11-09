@@ -5,6 +5,7 @@
  */
 
 @import url('chrome://browser/content/zen-styles/zen-tabs/vertical-tabs.css');
+@import url('chrome://browser/content/zen-styles/zen-tabs/shortcut-hints.css');
 
 #zen-tabbox-wrapper {
   position: relative;
