@@ -10,11 +10,20 @@ prefs = [
 ]
 support-files = [
   "head.js",
+  "delayed_navigation.sjs",
 ]
 
 ["browser_apply_skew.js"]
 
 ["browser_folder_delete.js"]
+
+["browser_mirroring.js"]
+
+["browser_mirroring_navigation.js"]
+
+["browser_mirroring_optout.js"]
+
+["browser_mirroring_options.js"]
 
 ["browser_normal_tabs_apply.js"]
 

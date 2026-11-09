@@ -1,28 +1,34 @@
 diff --git a/browser/components/preferences/dialogs/syncChooseWhatToSync.xhtml b/browser/components/preferences/dialogs/syncChooseWhatToSync.xhtml
-index a893c5ec3d007820d98f5d92dd039640faa2c181..9cbd00102e44ccf98b37845474d92d57bac0842d 100644
 --- a/browser/components/preferences/dialogs/syncChooseWhatToSync.xhtml
 +++ b/browser/components/preferences/dialogs/syncChooseWhatToSync.xhtml
-@@ -26,6 +26,10 @@
+@@ -25,6 +25,10 @@
+       <html:link
          rel="localization"
          href="browser/preferences/preferences.ftl"
-       />
++      />
 +      <html:link
 +        rel="localization"
 +        href="browser/preferences/zen-preferences.ftl"
-+      />
+       />
      </linkset>
      <script src="chrome://global/content/preferencesBindings.js" />
-     <script src="chrome://browser/content/preferences/dialogs/syncChooseWhatToSync.js" />
-@@ -86,6 +90,12 @@
+@@ -86,6 +90,19 @@
            preference="services.sync.engine.prefs"
          />
        </html:div>
 +      <html:div class="sync-engine-workspaces">
 +        <checkbox
++                id="syncEngineSpaces"
 +                data-l10n-id="sync-engine-workspaces"
 +                preference="services.sync.engine.spaces"
 +        />
 +      </html:div>
      </html:div>
++    <vbox>
++        <checkbox id="syncWorkspaceNormalTabs"
++                  data-l10n-id="zen-settings-normal-tabs-sync"
++                  preference="zen.spaces-sync.normal-tabs"/>
++        <description data-l10n-id="zen-settings-workspaces-mirror-description"/>
++    </vbox>
    </dialog>
  </window>

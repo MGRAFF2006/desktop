@@ -66,11 +66,13 @@ zen-tabs-close-on-back-with-no-history =
 
 zen-settings-workspaces-sync =
     .label = Sync your sidebar across devices
-    .description = Keep your workspaces, pinned tabs and folders in sync on all your devices through your Mozilla account.
+    .description = Use the same Mozilla account on each device to sync your workspaces, pinned tabs and folders.
 
 zen-settings-normal-tabs-sync =
-    .label = Include unpinned tabs
-    .description = Also sync the regular tabs of each space, not just your pinned tabs and folders.
+    .label = Mirror open web tabs across devices
+    .description = { zen-settings-workspaces-mirror-description }
+
+zen-settings-workspaces-mirror-description = Open, move, navigate and close regular web tabs on every device. Closing a tab on one device closes it on the others after syncing.
 
 zen-settings-workspaces-sync-unpinned-tabs =
     .label = Sync only pinned tabs in workspaces

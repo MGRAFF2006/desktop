@@ -26,7 +26,8 @@ XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
   "syncNormalTabs",
   "zen.spaces-sync.normal-tabs",
-  false
+  false,
+  () => ZenSpacesSyncModel.onMirroringPreferenceChanged()
 );
 
 /**
@@ -66,6 +67,18 @@ const STORE_VERSION = 1;
 
 // Everything setIcon accepts without a loading principal.
 const LOCAL_ICON_PROTOCOLS = ["data:", "chrome:", "about:", "resource:"];
+
+export function syncableTabUrl(url) {
+  if (typeof url !== "string") {
+    return null;
+  }
+  try {
+    const uri = Services.io.newURI(url);
+    return uri.scheme === "https" || uri.scheme === "http" ? uri.spec : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Normalizes a tab icon for syncing. The image attribute can hold a
@@ -145,6 +158,7 @@ export function recordDigest(kind, data) {
 class nsZenSpacesSyncModel {
   #file = null;
   #cache = null;
+  #pendingNavigations = new Map();
   /**
    * Ids applied from an incoming batch, keyed to the projection generation
    * (sidebar lastCollected) that was current when they were applied. The
@@ -189,6 +203,8 @@ class nsZenSpacesSyncModel {
           data.version = STORE_VERSION;
           data.uploaded ||= {};
           data.containers ||= {};
+          data.recordKinds ||= {};
+          data.detachedNormalTabs ||= {};
           // The container map used to be keyed by guid. It is keyed by
           // userContextId now so that registering a guid replaces any
           // previous one for the same container. Flip old stores over
@@ -209,6 +225,101 @@ class nsZenSpacesSyncModel {
 
   invalidate() {
     this.#cache = null;
+  }
+
+  onMirroringPreferenceChanged() {
+    this.#updateMirroringState();
+    this.invalidate();
+  }
+
+  #updateMirroringState() {
+    const data = this.#data();
+    const enabled = lazy.syncNormalTabs;
+    if (data.mirroringEnabled === enabled) {
+      return;
+    }
+    if (!enabled) {
+      for (const tab of lazy.ZenSessionStore.getSidebarData()?.tabs || []) {
+        if (tab.zenSyncId in data.uploaded) {
+          data.recordKinds[tab.zenSyncId] =
+            tab.pinned || tab.zenEssential ? RECORD_KINDS.TAB : "normal-tab";
+        }
+      }
+      for (const id of Object.keys(data.uploaded)) {
+        // Old snapshots have no record kinds. Retain unknown IDs until a
+        // server refetch can distinguish a tab from an actual deletion.
+        if (!data.recordKinds[id] || data.recordKinds[id] === "normal-tab") {
+          data.detachedNormalTabs[id] = true;
+        }
+      }
+    } else {
+      data.mirroringResyncRequired = true;
+    }
+    data.mirroringEnabled = enabled;
+    this.#file.saveSoon();
+  }
+
+  getNormalTabsToFetch() {
+    this.#updateMirroringState();
+    return lazy.syncNormalTabs
+      ? Object.keys(this.#data().detachedNormalTabs)
+      : [];
+  }
+
+  needsNormalTabsResync() {
+    this.#updateMirroringState();
+    return lazy.syncNormalTabs && !!this.#data().mirroringResyncRequired;
+  }
+
+  markNormalTabsResynced() {
+    if (lazy.syncNormalTabs) {
+      this.#data().mirroringResyncRequired = false;
+      this.#file.saveSoon();
+    }
+  }
+
+  noteIgnoredNormalTab(id, { deleted = false } = {}) {
+    const data = this.#data();
+    data.recordKinds[id] = "normal-tab";
+    data.detachedNormalTabs[id] = deleted ? "deleted" : true;
+    this.#file.saveSoon();
+  }
+
+  noteNavigationRequested(id, data, previousUrl) {
+    const navigation = {
+      previousUrl,
+      stamp: this.#currentStamp(),
+      committed: false,
+      identity: {
+        url: data.url,
+        title: data.title || "",
+        icon: syncableIconUrl(data.icon),
+      },
+    };
+    this.#pendingNavigations.set(id, navigation);
+    this.invalidate();
+    return navigation;
+  }
+
+  noteNavigationCommitted(id, navigation, url) {
+    if (this.#pendingNavigations.get(id) !== navigation) {
+      return;
+    }
+    const safeUrl = syncableTabUrl(url);
+    if (!safeUrl) {
+      this.cancelNavigation(id, navigation);
+      return;
+    }
+    navigation.identity.url = safeUrl;
+    navigation.committed = true;
+    this.invalidate();
+  }
+
+  cancelNavigation(id, navigation) {
+    if (this.#pendingNavigations.get(id) === navigation) {
+      this.#pendingNavigations.delete(id);
+      this.invalidate();
+    }
   }
 
   /* Mark: container identity */
@@ -308,7 +419,9 @@ class nsZenSpacesSyncModel {
   #isSyncableTab(tabData) {
     return (
       this.#isTabRecordMaterial(tabData) &&
-      (!!tabData.pinned || !!tabData.zenEssential || lazy.syncNormalTabs)
+      this.#data().detachedNormalTabs[tabData.zenSyncId] !== "deleted" &&
+      (!!tabData.pinned || !!tabData.zenEssential || lazy.syncNormalTabs) &&
+      !!this.#tabIdentity(tabData)
     );
   }
 
@@ -336,7 +449,22 @@ class nsZenSpacesSyncModel {
         }
       }
     }
-    if (!url || url === "about:blank") {
+    const navigation = this.#pendingNavigations.get(tabData.zenSyncId);
+    if (navigation && !tabData.pinned && !tabData.zenEssential) {
+      if (url === navigation.identity.url && navigation.committed) {
+        this.cancelNavigation(tabData.zenSyncId, navigation);
+      } else if (
+        !url ||
+        url === navigation.previousUrl ||
+        url === navigation.identity.url
+      ) {
+        return navigation.identity;
+      } else {
+        this.cancelNavigation(tabData.zenSyncId, navigation);
+      }
+    }
+    url = syncableTabUrl(url);
+    if (!url) {
       return null;
     }
     const icon = syncableIconUrl(
@@ -535,9 +663,15 @@ class nsZenSpacesSyncModel {
   }
 
   projections() {
+    this.#updateMirroringState();
     const sidebar = lazy.ZenSessionStore.getSidebarData() || {};
     const stamp = sidebar.lastCollected || 0;
-    if (this.#cache && this.#cache.stamp === stamp) {
+    const syncNormalTabs = lazy.syncNormalTabs;
+    if (
+      this.#cache &&
+      this.#cache.stamp === stamp &&
+      this.#cache.syncNormalTabs === syncNormalTabs
+    ) {
       return this.#cache.map;
     }
 
@@ -554,21 +688,57 @@ class nsZenSpacesSyncModel {
     this.#projectSplits(map, ctx);
     this.#projectLayout(map, ctx, spaces);
 
-    this.#cache = { stamp, map, pending };
+    const data = this.#data();
+    let changedKinds = false;
+    for (const [id, projected] of map) {
+      if (!(id in data.uploaded)) {
+        continue;
+      }
+      const kind = this.#recordKind(projected);
+      if (data.recordKinds[id] !== kind) {
+        data.recordKinds[id] = kind;
+        changedKinds = true;
+      }
+      if (kind !== "normal-tab" && data.detachedNormalTabs[id]) {
+        delete data.detachedNormalTabs[id];
+        changedKinds = true;
+      }
+    }
+    if (changedKinds) {
+      this.#file.saveSoon();
+    }
+    for (const [id, navigation] of this.#pendingNavigations) {
+      if (
+        stamp !== navigation.stamp &&
+        !ctx.allTabs.some(tab => tab.zenSyncId === id)
+      ) {
+        this.#pendingNavigations.delete(id);
+      }
+    }
+
+    this.#cache = { stamp, syncNormalTabs, map, pending };
     return map;
   }
 
   /**
-   * Items excluded only by the normal-tabs option are held back, not
-   * deleted. Flipping the option off must not tombstone them remotely.
+   * Items excluded by the mirroring option or unsupported URLs are held back,
+   * not deleted. Opting out or opening a local page must not close remote tabs.
    *
    * @param {object} ctx - The projection context.
    * @param {object} sidebar - The collected sidebar data.
    * @param {Set<string>} pending - Receives the held-back ids.
    */
   #collectHeldIds(ctx, sidebar, pending) {
-    if (lazy.syncNormalTabs) {
-      return;
+    const data = this.#data();
+    for (const id of Object.keys(data.detachedNormalTabs)) {
+      pending.add(id);
+    }
+    if (!lazy.syncNormalTabs) {
+      for (const [id, kind] of Object.entries(data.recordKinds)) {
+        if (kind === "normal-tab") {
+          pending.add(id);
+        }
+      }
     }
     const held = new Set();
     for (const tab of ctx.allTabs) {
@@ -706,8 +876,8 @@ class nsZenSpacesSyncModel {
 
   /**
    * Ids that are locally present but deliberately not projected this cycle
-   * (live folders whose provider config isn't available yet). The diff must
-   * not read their absence as a deletion.
+   * (excluded tabs or live folders whose provider config is unavailable).
+   * The diff must not read their absence as a deletion.
    */
   #pendingIds() {
     this.projections();
@@ -839,8 +1009,12 @@ class nsZenSpacesSyncModel {
     for (const id of ids) {
       if (current.has(id)) {
         data.uploaded[id] = current.get(id);
+        data.recordKinds[id] = this.#recordKind(this.projectRecord(id));
+        delete data.detachedNormalTabs[id];
       } else {
         delete data.uploaded[id];
+        delete data.recordKinds[id];
+        delete data.detachedNormalTabs[id];
       }
     }
     if (lazy.syncDebug && ids.length) {
@@ -864,16 +1038,33 @@ class nsZenSpacesSyncModel {
   noteApplied(id, cleartext) {
     const data = this.#data();
     const stamp = this.#appliedStampNow();
+    const deferredDeletion =
+      !cleartext &&
+      !lazy.syncNormalTabs &&
+      data.detachedNormalTabs[id] === "deleted";
     if (!cleartext) {
       delete data.uploaded[id];
+      if (!deferredDeletion) {
+        delete data.recordKinds[id];
+      }
     } else {
       data.uploaded[id] = recordDigest(cleartext.kind, cleartext.data);
+      data.recordKinds[id] = this.#recordKind(cleartext);
+    }
+    if (!deferredDeletion) {
+      delete data.detachedNormalTabs[id];
     }
     this.#appliedStamp.set(id, stamp);
     syncLog(
       `acknowledged incoming ${cleartext ? cleartext.kind : "tombstone"} ${id}`
     );
     this.#file.saveSoon();
+  }
+
+  #recordKind(record) {
+    return record.kind === RECORD_KINDS.TAB && record.data.pinned === false
+      ? "normal-tab"
+      : record.kind;
   }
 }
 
