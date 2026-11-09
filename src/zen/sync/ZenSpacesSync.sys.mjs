@@ -9,6 +9,7 @@ import {
 } from "resource://services-sync/engines.sys.mjs";
 import { CryptoWrapper } from "resource://services-sync/record.sys.mjs";
 import { SCORE_INCREMENT_XLARGE } from "resource://services-sync/constants.sys.mjs";
+import { Utils } from "resource://services-sync/util.sys.mjs";
 import {
   SIDEBAR_COLLECTED_TOPIC,
   syncLog,
@@ -81,6 +82,7 @@ class ZenSpacesSyncStore extends Store {
  */
 class ZenSpacesSyncTracker extends Tracker {
   _ignoreAll = false;
+  #onMirroringPreferenceChanged = () => this.observe(null, "nsPref:changed");
 
   get ignoreAll() {
     return this._ignoreAll;
@@ -94,12 +96,20 @@ class ZenSpacesSyncTracker extends Tracker {
     for (const topic of TRACKED_TOPICS) {
       Services.obs.addObserver(this, topic);
     }
+    Services.prefs.addObserver(
+      "zen.spaces-sync.normal-tabs",
+      this.#onMirroringPreferenceChanged
+    );
   }
 
   onStop() {
     for (const topic of TRACKED_TOPICS) {
       Services.obs.removeObserver(this, topic);
     }
+    Services.prefs.removeObserver(
+      "zen.spaces-sync.normal-tabs",
+      this.#onMirroringPreferenceChanged
+    );
   }
 
   observe(subject, topic) {
@@ -110,7 +120,10 @@ class ZenSpacesSyncTracker extends Tracker {
       ZenSpacesSyncModel.invalidate();
     }
     try {
-      if (ZenSpacesSyncModel.hasPendingChanges()) {
+      if (
+        ZenSpacesSyncModel.hasPendingChanges() ||
+        ZenSpacesSyncModel.needsNormalTabsResync()
+      ) {
         syncLog(`tracker: pending changes after ${topic}, requesting sync`);
         this.score += SCORE_INCREMENT_XLARGE;
       }
@@ -121,6 +134,7 @@ class ZenSpacesSyncTracker extends Tracker {
 }
 
 export class ZenSpacesSyncEngine extends SyncEngine {
+  #receivedIncomingIds = null;
   constructor(service) {
     super("Spaces", service);
   }
@@ -153,6 +167,60 @@ export class ZenSpacesSyncEngine extends SyncEngine {
 
   async getChangedIDs() {
     return ZenSpacesSyncModel.computeChangedIDs();
+  }
+
+  async _syncStartup() {
+    await super._syncStartup();
+    if (ZenSpacesSyncModel.needsNormalTabsResync()) {
+      // Normal-tab records were deliberately skipped while opted out. Fetch
+      // the collection again without wiping it or resetting account keys.
+      await this.setLastSync(0);
+    }
+    const detached = ZenSpacesSyncModel.getNormalTabsToFetch();
+    if (detached.length) {
+      this.toFetch = Utils.setAddAll(this.toFetch, detached);
+    }
+  }
+
+  async _processIncoming() {
+    const detached = ZenSpacesSyncModel.getNormalTabsToFetch();
+    const received = new Set();
+    this.#receivedIncomingIds = received;
+    try {
+      await super._processIncoming();
+    } finally {
+      this.#receivedIncomingIds = null;
+    }
+    if (!ZenSpacesSyncModel.needsNormalTabsResync() && !detached.length) {
+      return;
+    }
+    const stillDetached = new Set(ZenSpacesSyncModel.getNormalTabsToFetch());
+    const missing = [];
+    for (const id of detached) {
+      if (
+        stillDetached.has(id) &&
+        !received.has(id) &&
+        !this.toFetch.has(id) &&
+        !this.previousFailedIn.has(id)
+      ) {
+        // A successful explicit fetch returned neither a live record nor a
+        // tombstone: the server has already purged this detached identity.
+        missing.push({ id, deleted: true });
+      }
+    }
+    if (missing.length) {
+      const failed = await lazy.ZenSpacesSyncApplier.applyBatch(missing);
+      this.previousFailedIn = Utils.setAddAll(this.previousFailedIn, failed);
+      this.toFetch = Utils.setAddAll(this.toFetch, failed);
+    }
+    ZenSpacesSyncModel.markNormalTabsResynced();
+  }
+
+  async _maybeReconcile(item) {
+    // Retry sets can omit a record after repeated failures; only a fetch that
+    // never returned its identity proves that the server purged it.
+    this.#receivedIncomingIds?.add(item.id);
+    return super._maybeReconcile(item);
   }
 
   async _reconcile(item) {

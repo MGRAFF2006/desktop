@@ -7,6 +7,7 @@ import {
   LAYOUT_RECORD_ID,
   RECORD_KINDS,
   syncableIconUrl,
+  syncableTabUrl,
   syncLog,
   ZenSpacesSyncModel,
 } from "resource:///modules/zen/ZenSpacesSyncModel.sys.mjs";
@@ -43,6 +44,8 @@ const FIRST_SYNC_ANIMATION_PREF = "zen.spaces-sync.first-sync-animation-shown";
  * Applies batches of incoming Spaces records to the local browser.
  */
 class nsZenSpacesSyncApplier {
+  #navigationCleanups = new Map();
+
   #itemIn(win, id) {
     return id ? win.document.getElementById(id) : null;
   }
@@ -81,6 +84,11 @@ class nsZenSpacesSyncApplier {
       deleted: [],
     };
     const handled = new Set();
+    const failed = new Set();
+    const fail = (record, e) => {
+      failed.add(record.id);
+      console.error(`ZenSpacesSync: failed to apply ${record.id}:`, e);
+    };
 
     for (const record of records) {
       if (typeof record.id !== "string" || !record.id) {
@@ -98,6 +106,12 @@ class nsZenSpacesSyncApplier {
         continue;
       }
       if (data.pinned === false && !lazy.syncNormalTabs) {
+        if (
+          record.cleartext.kind === RECORD_KINDS.TAB &&
+          syncableTabUrl(data.url)
+        ) {
+          ZenSpacesSyncModel.noteIgnoredNormalTab(record.id);
+        }
         // Normal-tab syncing is off here: leave the record untouched and
         // unacknowledged, like an unknown kind.
         continue;
@@ -110,9 +124,16 @@ class nsZenSpacesSyncApplier {
         case RECORD_KINDS.SPACE:
           incoming.spaces.push(entry);
           break;
-        case RECORD_KINDS.TAB:
+        case RECORD_KINDS.TAB: {
+          const url = syncableTabUrl(data.url);
+          if (!url) {
+            fail(record, new Error("unsupported synced tab URL"));
+            continue;
+          }
+          entry.data = { ...data, url };
           incoming.tabs.push(entry);
           break;
+        }
         case RECORD_KINDS.FOLDER:
           incoming.folders.push(entry);
           break;
@@ -135,12 +156,6 @@ class nsZenSpacesSyncApplier {
         `${incoming.folders.length} folders, ${incoming.splits.length} splits, ` +
         `layout=${!!incoming.layout}, ${incoming.deleted.length} tombstones`
     );
-
-    const failed = new Set();
-    const fail = (record, e) => {
-      failed.add(record.id);
-      console.error(`ZenSpacesSync: failed to apply ${record.id}:`, e);
-    };
 
     const deletions = this.#applyContainers(incoming, fail);
 
@@ -557,12 +572,14 @@ class nsZenSpacesSyncApplier {
 
   #createTab(win, tabId, data) {
     const userContextId = this.#resolveContainerId(data.containerGuid);
+    const { triggeringPrincipal } = this.#loadContext(data.url, userContextId);
     syncLog(
       `creating tab ${tabId} ` +
         `(essential=${!!data.essential}, container=${userContextId})`,
       data.url
     );
-    const tab = win.gBrowser.addTrustedTab(data.url, {
+    const tab = win.gBrowser.addTab(data.url, {
+      triggeringPrincipal,
       createLazyBrowser: true,
       inBackground: true,
       skipAnimation: true,
@@ -706,10 +723,10 @@ class nsZenSpacesSyncApplier {
           url: data.url,
           title: data.title || "",
           triggeringPrincipal_base64: lazy.E10SUtils.serializePrincipal(
-            Services.scriptSecurityManager.createContentPrincipal(
-              Services.io.newURI(data.url),
-              {}
-            )
+            this.#loadContext(
+              data.url,
+              tab.linkedBrowser.getAttribute("usercontextid") || 0
+            ).triggeringPrincipal
           ),
         },
       ];
@@ -749,7 +766,29 @@ class nsZenSpacesSyncApplier {
     }
   }
 
+  #loadContext(url, userContextId) {
+    const uri = Services.io.newURI(url);
+    const triggeringPrincipal =
+      Services.scriptSecurityManager.createNullPrincipal({
+        userContextId: Number(userContextId),
+      });
+    Services.scriptSecurityManager.checkLoadURIWithPrincipal(
+      triggeringPrincipal,
+      uri,
+      Ci.nsIScriptSecurityManager.DISALLOW_INHERIT_PRINCIPAL |
+        Ci.nsIScriptSecurityManager.DISALLOW_SCRIPT
+    );
+    return { uri, triggeringPrincipal };
+  }
+
   #updateTab(win, tab, data) {
+    if (
+      data.pinned === false &&
+      tab.linkedPanel &&
+      tab.linkedBrowser.currentURI.spec !== data.url
+    ) {
+      this.#navigateLoadedTab(win, tab, data);
+    }
     this.#updateTabIdentity(win, tab, data);
 
     const isEssential = tab.hasAttribute("zen-essential");
@@ -794,6 +833,95 @@ class nsZenSpacesSyncApplier {
     }
   }
 
+  #navigateLoadedTab(win, tab, data) {
+    const browser = tab.linkedBrowser;
+    if (browser.hasBeforeUnload) {
+      throw new Error("remote navigation deferred for a protected tab");
+    }
+    const { uri, triggeringPrincipal } = this.#loadContext(
+      data.url,
+      browser.getAttribute("usercontextid") || 0
+    );
+    this.#navigationCleanups.get(tab.id)?.(true);
+    const navigation = ZenSpacesSyncModel.noteNavigationRequested(
+      tab.id,
+      data,
+      browser.currentURI.spec
+    );
+    let started = false;
+    let cleaned = false;
+    const cleanup = cancel => {
+      if (cleaned) {
+        return;
+      }
+      cleaned = true;
+      win.gBrowser.removeTabsProgressListener(listener);
+      tab.removeEventListener("TabClose", onClose);
+      win.removeEventListener("unload", onClose);
+      this.#navigationCleanups.delete(tab.id);
+      if (cancel) {
+        ZenSpacesSyncModel.cancelNavigation(tab.id, navigation);
+      }
+      lazy.SessionSaver.runDelayed();
+    };
+    const onClose = () => cleanup(true);
+    const listener = {
+      onStateChange: (changedBrowser, progress, request, flags, status) => {
+        if (changedBrowser !== browser || !progress?.isTopLevel) {
+          return;
+        }
+        const wpl = Ci.nsIWebProgressListener;
+        if (flags & wpl.STATE_START && flags & wpl.STATE_IS_DOCUMENT) {
+          let requestedUrl;
+          try {
+            requestedUrl = request.QueryInterface(Ci.nsIChannel).originalURI
+              .spec;
+          } catch {
+            return;
+          }
+          if (requestedUrl !== data.url) {
+            cleanup(true);
+            return;
+          }
+          started = true;
+        }
+        if (started && flags & wpl.STATE_STOP && flags & wpl.STATE_IS_NETWORK) {
+          cleanup(!Components.isSuccessCode(status) || !navigation.committed);
+        }
+      },
+      onLocationChange: (
+        changedBrowser,
+        progress,
+        request,
+        location,
+        flags
+      ) => {
+        if (changedBrowser !== browser || !progress?.isTopLevel || !started) {
+          return;
+        }
+        if (flags & Ci.nsIWebProgressListener.LOCATION_CHANGE_ERROR_PAGE) {
+          cleanup(true);
+          return;
+        }
+        ZenSpacesSyncModel.noteNavigationCommitted(
+          tab.id,
+          navigation,
+          location.spec
+        );
+      },
+    };
+    this.#navigationCleanups.set(tab.id, cleanup);
+    win.gBrowser.addTabsProgressListener(listener);
+    tab.addEventListener("TabClose", onClose, { once: true });
+    win.addEventListener("unload", onClose, { once: true });
+    try {
+      browser.loadURI(uri, { triggeringPrincipal });
+    } catch (error) {
+      cleanup(true);
+      throw error;
+    }
+  }
+
   #removeTab(win, tab) {
     if (tab.splitView) {
       win.gZenViewSplitter.removeTabFromGroup(tab, undefined, {
@@ -809,6 +937,14 @@ class nsZenSpacesSyncApplier {
       try {
         const tab = this.#itemIn(win, tabId);
         if (win.gBrowser.isTab(tab)) {
+          if (
+            !lazy.syncNormalTabs &&
+            !tab.pinned &&
+            !tab.hasAttribute("zen-essential")
+          ) {
+            ZenSpacesSyncModel.noteIgnoredNormalTab(tabId, { deleted: true });
+            continue;
+          }
           if (tab.hasAttribute("zen-essential")) {
             console.warn(
               `ZenSpacesSync: incoming tombstone removes essential tab ${tabId}`,

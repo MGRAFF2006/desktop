@@ -56,7 +56,7 @@ index b01fd4bb163ad53139fcbd8e79e12ef994d1fa13..7e3c2f6852b77192b4505bb3d5a7b585
 +                items: [
 +                  {
 +                    id: "zenSyncNormalTabs",
-+                    l10nId: "zen-settings-normal-tabs-sync",
++                    l10nId: "zen-settings-workspaces-mirror-tabs",
 +                    control: "moz-checkbox",
 +                  },
 +                ],
