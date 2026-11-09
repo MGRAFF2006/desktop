@@ -125,7 +125,12 @@ class nsZenTabShortcutHints extends nsZenDOMOperatedFeature {
       const key = document.getElementById(
         number === 9 ? "key_selectLastTab" : `key_selectTab${number}`
       );
-      const value = key?.getAttribute("key");
+      const value = key
+        ? ShortcutUtils.getKeyString(
+            key.getAttribute("keycode"),
+            key.getAttribute("key")
+          )
+        : "";
       let hint = tab.querySelector(".zen-tab-shortcut-hint");
       if (!value || key.getAttribute("disabled") === "true" || tab.closing) {
         hint?.remove();
