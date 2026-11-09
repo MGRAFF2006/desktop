@@ -262,9 +262,58 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
   }
 
   handleDarkModeChange() {
-    this.#nativeAccentColorCache = null;
-    this.updateCurrentWorkspace();
+    this.refreshWorkspaceThemes();
     Services.obs.notifyObservers(null, "zen-theme-change");
+  }
+
+  // Refresh rendered themes without serializing picker controls: the picker may
+  // be editing a different workspace from the one this window displays.
+  refreshWorkspaceThemes() {
+    this.#nativeAccentColorCache = null;
+    this.#gradientsCache.clear();
+    if (!this.promiseInitialized) {
+      return;
+    }
+
+    const workspace = gZenWorkspaces.getActiveWorkspace();
+    if (!workspace) {
+      return;
+    }
+    for (const cachedWorkspace of gZenWorkspaces.getWorkspaces()) {
+      gZenWorkspaces
+        .workspaceElement(cachedWorkspace.uuid)
+        ?.onGradientCacheChanged();
+    }
+    const rendered = this.getGradientForWorkspace(workspace);
+    this.browserBackgroundElement.style.setProperty(
+      "--zen-main-browser-background",
+      rendered.gradient
+    );
+    this.toolbarBackgroundElement.style.setProperty(
+      "--zen-main-browser-background-toolbar",
+      rendered.toolbarGradient
+    );
+    this.updateNoise(rendered.grain, rendered.grainTexture);
+
+    const root = document.documentElement;
+    if (!this.getMostDominantColor(workspace.theme?.gradientColors ?? [])) {
+      root.setAttribute("zen-default-theme", "true");
+    } else {
+      root.removeAttribute("zen-default-theme");
+    }
+    if (rendered.isExplicitMode) {
+      root.setAttribute("zen-should-be-dark-mode", rendered.isDarkMode);
+    } else {
+      root.removeAttribute("zen-should-be-dark-mode");
+    }
+    root.style.setProperty(
+      "--toolbar-color-scheme",
+      rendered.isDarkMode ? "dark" : "light"
+    );
+    for (const [property, value] of Object.entries(rendered.paletteStyles)) {
+      root.style.setProperty(property, value);
+    }
+    Services.obs.notifyObservers(null, "zen-space-gradient-update");
   }
 
   get isDarkMode() {
@@ -2227,7 +2276,7 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
 
   #initNativeAccentColorInvalidation() {
     const invalidate = () => {
-      this.#nativeAccentColorCache = null;
+      this.refreshWorkspaceThemes();
     };
     Services.obs.addObserver(invalidate, "look-and-feel-changed");
     Services.prefs.addObserver("zen.theme.accent-color", invalidate);
@@ -2458,13 +2507,13 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
   }
 
   invalidateGradientCache(uuid) {
-    delete this.#gradientsCache[uuid];
+    this.#gradientsCache.delete(uuid);
     gZenWorkspaces.workspaceElement(uuid)?.onGradientCacheChanged();
   }
 
   getGradientForWorkspace(workspace, { getGradient = true } = {}) {
     const uuid = workspace.uuid;
-    let cachedData = this.#gradientsCache[uuid];
+    let cachedData = this.#gradientsCache.get(uuid);
     if (cachedData && !(getGradient && !cachedData.gradient)) {
       return cachedData;
     }
@@ -2498,7 +2547,7 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
       ...this.toolbarTextStyles(dominantColor, isDarkMode),
       "--zen-primary-color": primaryColor,
     };
-    this.#gradientsCache[uuid] = {
+    const rendered = {
       gradient,
       toolbarGradient,
       grain: theme.texture ?? 0,
@@ -2511,6 +2560,7 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
     this.currentOpacity = previousOpacity;
     this.#currentLightness = previousLightness;
     this.useAlgo = previousAlgo;
-    return this.#gradientsCache[uuid];
+    this.#gradientsCache.set(uuid, rendered);
+    return rendered;
   }
 }

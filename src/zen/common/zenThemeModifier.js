@@ -95,9 +95,18 @@
       );
     },
 
-    handleEvent() {
-      // note: even might be undefined, but we shoudnt use it!
-      this.updateAllThemeBasics();
+    handleEvent(_subject, _topic, pref) {
+      switch (pref) {
+        case "zen.theme.accent-color":
+          this.updateAccentColor();
+          break;
+        case "zen.theme.border-radius":
+          this.updateBorderRadius();
+          break;
+        case "zen.theme.content-element-separation":
+          this.updateElementSeparation();
+          break;
+      }
     },
 
     /**
@@ -202,6 +211,14 @@
      * Update the accent color.
      */
     updateAccentColor() {
+      // Once initialized, the workspace picker owns the browser's derived
+      // accent and refreshes it when the accent preference changes.
+      if (
+        this._inMainBrowserWindow &&
+        window.gZenThemePicker?.promiseInitialized
+      ) {
+        return;
+      }
       const accentColor = Services.prefs.getStringPref(
         "zen.theme.accent-color"
       );
