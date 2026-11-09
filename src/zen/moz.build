@@ -17,7 +17,6 @@ DIRS += [
     "live-folders",
     "media",
     "migration",
-    "mods",
     "tests",
     "urlbar",
     "toolkit",

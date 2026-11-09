@@ -19770,12 +19770,6 @@ declare global {
     onDragEnd(): void;
   }
 
-  // https://searchfox.org/firefox-main/source/zen/mods/nsIZenModsBackend.idl
-
-  interface nsIZenModsBackend extends nsISupports {
-    rebuildModsStyles(aContents: string): void;
-  }
-
   // https://searchfox.org/firefox-main/source/modules/libjar/zipwriter/nsIZipWriter.idl
 
   interface nsIZipWriter extends nsISupports {
@@ -21195,7 +21189,6 @@ declare global {
     nsIXREDirProvider: nsJSIID<nsIXREDirProvider>;
     nsIZenCommonUtils: nsJSIID<nsIZenCommonUtils>;
     nsIZenDragAndDrop: nsJSIID<nsIZenDragAndDrop>;
-    nsIZenModsBackend: nsJSIID<nsIZenModsBackend>;
     nsIZipWriter: nsJSIID<nsIZipWriter>;
   }
 } // global

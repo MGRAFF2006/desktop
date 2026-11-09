@@ -38,3 +38,7 @@ support-files = ["!/toolkit/components/reader/tests/browser/readerModeArticle.ht
 ["browser_toasts.js"]
 
 ["browser_zen_commands.js"]
+
+["browser_no_mods_marketplace.js"]
+
+["browser_tab_shortcut_hints.js"]
