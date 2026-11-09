@@ -1,0 +1,19 @@
+diff --git a/browser/base/content/pageinfo/pageInfo.xhtml b/browser/base/content/pageinfo/pageInfo.xhtml
+--- a/browser/base/content/pageinfo/pageInfo.xhtml
++++ b/browser/base/content/pageinfo/pageInfo.xhtml
+@@ -26,6 +26,7 @@
+     <html:link rel="stylesheet" href="chrome://browser/skin/pageInfo.css" />
+ 
+     <html:link rel="localization" href="browser/pageInfo.ftl"/>
++    <html:link rel="stylesheet" href="chrome://browser/content/zen-styles/zen-legacy-windows.css"/>
+   </linkset>
+   #ifdef XP_MACOSX
+   #include ../macWindow.inc.xhtml
+@@ -34,6 +35,7 @@
+   <script src="chrome://global/content/editMenuOverlay.js"/>
+   <script src="chrome://browser/content/utilityOverlay.js"/>
+   #endif
++  <script src="chrome://browser/content/zenThemeModifier.js"/>
+   <script src="chrome://global/content/contentAreaUtils.js"/>
+   <script src="chrome://global/content/treeUtils.js"/>
+   <script src="chrome://browser/content/pageinfo/pageInfo.js"/>

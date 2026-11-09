@@ -1,0 +1,11 @@
+diff --git a/toolkit/components/pdfjs/content/web/viewer.html b/toolkit/components/pdfjs/content/web/viewer.html
+--- a/toolkit/components/pdfjs/content/web/viewer.html
++++ b/toolkit/components/pdfjs/content/web/viewer.html
+@@ -42,6 +42,7 @@
+ <script src="resource://pdf.js/build/pdf.mjs" type="module"></script>
+ 
+   <link rel="stylesheet" href="resource://pdf.js/web/viewer.css">
++  <link rel="stylesheet" href="chrome://browser/content/zen-styles/zen-pdf.css">
+   <link rel="localization" href="toolkit/pdfviewer/viewer.ftl"/>
+ 
+   <script src="resource://pdf.js/web/viewer.mjs" type="module"></script>

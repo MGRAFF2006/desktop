@@ -1,0 +1,31 @@
+diff --git a/devtools/client/shared/theme-switching.js b/devtools/client/shared/theme-switching.js
+--- a/devtools/client/shared/theme-switching.js
++++ b/devtools/client/shared/theme-switching.js
+@@ -41,6 +41,27 @@
+     return;
+   }
+ 
++  // DevTools documents have their own theme lifecycle and do not inherit the
++  // browser window's accent. Keep the configured accent without changing the
++  // independently selected DevTools color scheme.
++  const zenAccentPref = "zen.theme.accent-color";
++  function updateZenAccent() {
++    const accent = Services.prefs.getStringPref(zenAccentPref, "AccentColor");
++    documentElement.style.setProperty(
++      "--zen-primary-color",
++      /^(?:AccentColor|#[\da-f]{3}|#[\da-f]{6})$/i.test(accent)
++        ? accent
++        : "AccentColor"
++    );
++  }
++  updateZenAccent();
++  Services.prefs.addObserver(zenAccentPref, updateZenAccent);
++  window.addEventListener(
++    "unload",
++    () => Services.prefs.removeObserver(zenAccentPref, updateZenAccent),
++    { once: true }
++  );
++
+   const devtoolsStyleSheets = new WeakMap();
+   let gOldTheme = "";
+ 

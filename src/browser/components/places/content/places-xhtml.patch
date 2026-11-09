@@ -1,0 +1,14 @@
+diff --git a/browser/components/places/content/places.xhtml b/browser/components/places/content/places.xhtml
+--- a/browser/components/places/content/places.xhtml
++++ b/browser/components/places/content/places.xhtml
+@@ -63,8 +63,10 @@
+     <html:link rel="localization" href="browser/places.ftl"/>
+     <html:link rel="localization" href="browser/downloads.ftl"/>
+     <html:link rel="localization" href="browser/editBookmarkOverlay.ftl"/>
++    <html:link rel="stylesheet" href="chrome://browser/content/zen-styles/zen-legacy-windows.css"/>
+   </linkset>
+ 
++  <script src="chrome://browser/content/zenThemeModifier.js"/>
+   <script src="chrome://browser/content/places/places.js"/>
+   <script src="chrome://global/content/editMenuOverlay.js"/>
+ #ifndef XP_MACOSX

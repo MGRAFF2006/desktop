@@ -1,0 +1,11 @@
+diff --git a/devtools/client/jar.mn b/devtools/client/jar.mn
+--- a/devtools/client/jar.mn
++++ b/devtools/client/jar.mn
+@@ -108,6 +108,7 @@
+ %   skin devtools classic/1.0 %skin/
+     skin/common.css (themes/common.css)
+     skin/variables.css (themes/variables.css)
++    skin/zen-theme.css (themes/zen-theme.css)
+     skin/splitters.css (themes/splitters.css)
+     skin/devtools-browser.css (themes/devtools-browser.css)
+     skin/dark-theme.css (themes/dark-theme.css)

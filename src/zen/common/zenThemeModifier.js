@@ -30,6 +30,7 @@
     "zen.theme.accent-color",
     "zen.theme.border-radius",
     "zen.theme.content-element-separation",
+    "zen.view.window.scheme",
   ];
   const kZenMaxElementSeparation = 12;
 
@@ -54,6 +55,14 @@
         window.location.href == "chrome://browser/content/browser.xhtml";
       this.listenForEvents();
       this.updateAllThemeBasics();
+      if (!this._inMainBrowserWindow && document.l10n) {
+        // Page Info localizes its root style attribute, replacing inline colors.
+        document.l10n.ready.then(() => {
+          if (!window.closed) {
+            this.updateAllThemeBasics();
+          }
+        });
+      }
     },
 
     listenForEvents() {
@@ -61,6 +70,15 @@
       // Listen for changes in the accent color and border radius
       for (let pref of kZenThemePrefsList) {
         Services.prefs.addObserver(pref, handleEvent);
+      }
+
+      const contentThemeHandler = () => {
+        this.updateAccentColor();
+        this.updateWindowScheme();
+      };
+      if (!this._inMainBrowserWindow) {
+        this._forcedColors = window.matchMedia("(forced-colors: active)");
+        this._forcedColors.addEventListener("change", contentThemeHandler);
       }
 
       // Add fullscreen listener to update the theme when going in and out of fullscreen
@@ -85,6 +103,10 @@
           for (let pref of kZenThemePrefsList) {
             Services.prefs.removeObserver(pref, handleEvent);
           }
+          this._forcedColors?.removeEventListener(
+            "change",
+            contentThemeHandler
+          );
           for (let eventName of eventsForSeparation) {
             window.removeEventListener(eventName, separationHandler, {
               capture: true,
@@ -106,6 +128,9 @@
         case "zen.theme.content-element-separation":
           this.updateElementSeparation();
           break;
+        case "zen.view.window.scheme":
+          this.updateWindowScheme();
+          break;
       }
     },
 
@@ -116,6 +141,22 @@
       this.updateAccentColor();
       this.updateBorderRadius();
       this.updateElementSeparation();
+      this.updateWindowScheme();
+    },
+
+    updateWindowScheme() {
+      if (this._inMainBrowserWindow) {
+        return;
+      }
+      const scheme = window.docShell?.usePrivateBrowsing
+        ? 0
+        : Services.prefs.getIntPref("zen.view.window.scheme", 2);
+      if (this._forcedColors.matches || ![0, 1].includes(scheme)) {
+        document.documentElement.style.removeProperty("color-scheme");
+      } else {
+        document.documentElement.style.colorScheme =
+          scheme === 0 ? "dark" : "light";
+      }
     },
 
     updateBorderRadius() {
@@ -219,9 +260,9 @@
       ) {
         return;
       }
-      const accentColor = Services.prefs.getStringPref(
-        "zen.theme.accent-color"
-      );
+      const accentColor = this._forcedColors?.matches
+        ? "AccentColor"
+        : Services.prefs.getStringPref("zen.theme.accent-color");
       document.documentElement.style.setProperty(
         "--zen-primary-color",
         accentColor

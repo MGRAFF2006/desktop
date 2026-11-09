@@ -19,6 +19,7 @@
         content/browser/zen-components/ZenEmojiPicker.mjs                       (../../zen/common/emojis/ZenEmojiPicker.mjs)
 
 *       content/browser/zen-styles/zen-theme.css                                (../../zen/common/styles/zen-theme.css)
+        content/browser/zen-styles/zen-pdf.css                                  (../../zen/common/styles/zen-pdf.css)
         content/browser/zen-styles/zen-buttons.css                              (../../zen/common/styles/zen-buttons.css)
         content/browser/zen-styles/zen-browser-ui.css                           (../../zen/common/styles/zen-browser-ui.css)
         content/browser/zen-styles/zen-animations.css                           (../../zen/common/styles/zen-animations.css)
@@ -36,3 +37,4 @@
         content/browser/zen-styles/zen-panels/bookmarks.css                     (../../zen/common/styles/zen-panels/bookmarks.css)
         content/browser/zen-styles/zen-panels/print.css                         (../../zen/common/styles/zen-panels/print.css)
         content/browser/zen-styles/zen-panels/dialog.css                        (../../zen/common/styles/zen-panels/dialog.css)
+        content/browser/zen-styles/zen-legacy-windows.css                      (../../zen/common/styles/zen-legacy-windows.css)

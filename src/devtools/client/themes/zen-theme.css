@@ -1,0 +1,62 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+/* DevTools chooses its own light/dark scheme. Bridge only the surrounding
+ * chrome; syntax, diagnostics, page inspection and data colors remain intact. */
+@media (forced-colors: none) and (prefers-contrast: no-preference) {
+  :root:is(.theme-light, .theme-dark):not([forced-colors-active]) {
+    --zen-devtools-accent: var(--zen-primary-color, AccentColor);
+    --zen-devtools-text: light-dark(#101010, #e2e2e2);
+    --zen-devtools-surface: light-dark(#fafbff, #1c1c1c);
+    --zen-devtools-toolbar: light-dark(#f4f4f4, #181818);
+    --zen-devtools-hover: color-mix(
+      in srgb,
+      var(--zen-devtools-text) 8%,
+      transparent
+    );
+    --zen-devtools-border: color-mix(
+      in srgb,
+      var(--zen-devtools-text) 15%,
+      transparent
+    );
+    --zen-devtools-selection: light-dark(
+      color-mix(in srgb, var(--zen-devtools-accent) 40%, #101010),
+      color-mix(in srgb, var(--zen-devtools-accent) 40%, #e2e2e2)
+    );
+    --zen-devtools-selection-text: light-dark(#fafbff, #101010);
+
+    --theme-body-background: var(--zen-devtools-surface);
+    --theme-body-emphasized-background: var(--zen-devtools-toolbar);
+    --theme-sidebar-background: var(--zen-devtools-surface);
+    --theme-tab-toolbar-background: var(--zen-devtools-toolbar);
+    --theme-toolbar-background: var(--zen-devtools-toolbar);
+    --theme-toolbar-alternate-background: var(--zen-devtools-surface);
+    --theme-toolbar-background-alt: var(--zen-devtools-surface);
+    --theme-toolbar-color: var(--zen-devtools-text);
+    --theme-toolbar-hover: var(--zen-devtools-hover);
+    --theme-toolbar-background-hover: var(--zen-devtools-hover);
+    --theme-toolbar-alternate-hover: var(--zen-devtools-hover);
+    --theme-toolbar-hover-active: color-mix(
+      in srgb,
+      var(--zen-devtools-text) 12%,
+      transparent
+    );
+    --theme-toolbar-separator: var(--zen-devtools-border);
+    --theme-splitter-color: var(--zen-devtools-border);
+    --theme-body-color: var(--zen-devtools-text);
+    --theme-popup-background: var(--zen-devtools-surface);
+    --theme-popup-color: var(--zen-devtools-text);
+    --theme-popup-border-color: var(--zen-devtools-border);
+
+    --theme-focus-outline-color: var(--zen-devtools-selection);
+    --theme-toolbar-selected-color: var(--zen-devtools-selection);
+    --theme-icon-checked-color: var(--zen-devtools-selection);
+    --tab-line-selected-color: var(--zen-devtools-selection);
+    --theme-selection-background: var(--zen-devtools-selection);
+    --theme-selection-color: var(--zen-devtools-selection-text);
+    --theme-selection-background-hover: var(--zen-devtools-hover);
+    --theme-popup-hover-background: var(--zen-devtools-selection);
+    --theme-popup-hover-color: var(--zen-devtools-selection-text);
+  }
+}

@@ -2,47 +2,39 @@ diff --git a/toolkit/themes/shared/aboutReader.css b/toolkit/themes/shared/about
 index cb07e9ffa97c4d4856fc96eeda409faeedecb9e4..3960ec171efa573ad140488e25249df47b722875 100644
 --- a/toolkit/themes/shared/aboutReader.css
 +++ b/toolkit/themes/shared/aboutReader.css
-@@ -1187,3 +1187,43 @@ pre code {
+@@ -1187,3 +1187,35 @@ pre code {
    display: block;
    overflow: auto;
  }
 +
-+/* Zen Overrides */
++/* Zen controls follow the reader's selected light/dark scheme. Article colors,
++ * custom palettes and high contrast remain owned by Reader Mode. */
++@media (forced-colors: none) and (prefers-contrast: no-preference) {
++  body:not(.hcm, .contrast, .custom) .toolbar {
++    --primary-color: var(--color-accent-primary);
++    --outline-focus-color: var(--primary-color);
++    --toolbar-button-background-hover: var(--button-background-color-hover);
++    --toolbar-button-background-active: var(--button-background-color-active);
++    --popup-background: var(--zen-dialog-background);
++    --popup-border: var(--zen-colors-border);
++    --popup-button-background: var(--button-background-color);
++    --popup-button-background-hover: var(--button-background-color-hover);
++    --popup-button-background-active: var(--button-background-color-active);
++    --popup-button-border: var(--zen-input-border-color);
++    border: none;
++    padding: 0;
++    box-shadow: none;
++  }
 +
-+.toolbar {
-+  border: none !important;
-+  padding: 0 !important;
-+  box-shadow: none !important;
-+}
++  body:not(.hcm) .toolbar-button {
++    border-radius: 50%;
++  }
 +
-+.toolbar-button {
-+  border-radius: 50% !important;
-+}
++  .open > .dropdown-popup {
++    border-radius: 12px;
++  }
 +
-+.open>.dropdown-popup {
-+  border: 1px solid light-dark(#00000033, #ffffff33) !important;
-+  border-radius: 12px !important;
-+}
-+
-+.font-type-buttons > label {
-+  background-color: transparent !important;
-+}
-+
-+.radiorow>label {
-+  border-radius: 8px !important;
-+}
-+
-+.buttonrow > button {
-+  opacity: .6;
-+}
-+
-+.buttonrow > button:enabled:hover,
-+.buttonrow > button:enabled:hover:active {
-+  background-color: transparent !important;
-+  opacity: 1;
-+}
-+
-+.radiorow>input[type=radio]:focus-visible+label::after,
-+.radiorow>label:hover::after {
-+  border: none !important;
++  .radiorow > label {
++    border-radius: 8px;
++  }
 +}

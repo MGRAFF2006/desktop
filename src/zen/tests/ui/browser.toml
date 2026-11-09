@@ -15,9 +15,25 @@ support-files = [
 
 ["browser_tab_loading_indicator.js"]
 
+["browser_devtools_theme.js"]
+
+["browser_internal_page_surfaces.js"]
+
+["browser_internal_theme.js"]
+
+["browser_pdf_theme.js"]
+support-files = ["!/toolkit/components/pdfjs/test/file_pdfjs_test.pdf"]
+
+["browser_reader_theme.js"]
+support-files = ["!/toolkit/components/reader/tests/browser/readerModeArticle.html"]
+
 ["browser_tab_renamer.js"]
 
+["browser_theme_controls.js"]
+
 ["browser_theme_modifier.js"]
+
+["browser_theme_tokens.js"]
 
 ["browser_toasts.js"]
 

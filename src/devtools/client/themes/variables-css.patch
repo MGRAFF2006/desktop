@@ -1,0 +1,12 @@
+diff --git a/devtools/client/themes/variables.css b/devtools/client/themes/variables.css
+--- a/devtools/client/themes/variables.css
++++ b/devtools/client/themes/variables.css
+@@ -2,6 +2,8 @@
+  * License, v. 2.0. If a copy of the MPL was not distributed with this
+  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+ 
++@import url("chrome://devtools/skin/zen-theme.css");
++
+ /* The following properties values are consumed by the client for drawing in canvas
+  * (for the Netmonitor waterfall ticks, the Font preview, …).
+  * Since they're defined in :root with light-dark(), we need to register them so we'll get
