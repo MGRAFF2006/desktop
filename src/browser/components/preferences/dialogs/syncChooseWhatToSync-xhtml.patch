@@ -26,7 +26,7 @@ diff --git a/browser/components/preferences/dialogs/syncChooseWhatToSync.xhtml b
      </html:div>
 +    <vbox>
 +        <checkbox id="syncWorkspaceNormalTabs"
-+                  data-l10n-id="zen-settings-normal-tabs-sync"
++                  data-l10n-id="zen-settings-workspaces-mirror-tabs"
 +                  preference="zen.spaces-sync.normal-tabs"/>
 +        <description data-l10n-id="zen-settings-workspaces-mirror-description"/>
 +    </vbox>

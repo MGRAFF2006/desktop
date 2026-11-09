@@ -68,7 +68,7 @@ zen-settings-workspaces-sync =
     .label = Sync your sidebar across devices
     .description = Use the same Mozilla account on each device to sync your workspaces, pinned tabs and folders.
 
-zen-settings-normal-tabs-sync =
+zen-settings-workspaces-mirror-tabs =
     .label = Mirror open web tabs across devices
     .description = { zen-settings-workspaces-mirror-description }
 
