@@ -257,7 +257,8 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
       this,
       "darkModeBias",
       "zen.theme.dark-mode-bias",
-      "0.5"
+      "0.5",
+      darkModeChange
     );
   }
 
@@ -2280,11 +2281,16 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
     };
     Services.obs.addObserver(invalidate, "look-and-feel-changed");
     Services.prefs.addObserver("zen.theme.accent-color", invalidate);
+    Services.prefs.addObserver("zen.theme.use-system-colors", invalidate);
     window.addEventListener(
       "unload",
       () => {
         Services.obs.removeObserver(invalidate, "look-and-feel-changed");
         Services.prefs.removeObserver("zen.theme.accent-color", invalidate);
+        Services.prefs.removeObserver(
+          "zen.theme.use-system-colors",
+          invalidate
+        );
       },
       { once: true }
     );
