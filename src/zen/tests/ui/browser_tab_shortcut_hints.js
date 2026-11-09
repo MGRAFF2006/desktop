@@ -236,7 +236,9 @@ add_task(async function test_hints_follow_non_character_shortcut_remapping() {
       "A remapped function key remains visible on its target tab"
     );
     Assert.equal(
-      target.querySelector(".zen-tab-shortcut-hint").getAttribute("tooltiptext"),
+      target
+        .querySelector(".zen-tab-shortcut-hint")
+        .getAttribute("tooltiptext"),
       ShortcutUtils.prettifyShortcut(key),
       "The tooltip includes the full shortcut with modifiers"
     );
