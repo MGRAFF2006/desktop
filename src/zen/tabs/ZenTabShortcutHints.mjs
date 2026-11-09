@@ -3,7 +3,6 @@
 // file, You can obtain one at http://mozilla.org/MPL/2.0/.
 
 import { nsZenDOMOperatedFeature } from "chrome://browser/content/zen-components/ZenCommonUtils.mjs";
-import { ShortcutUtils } from "resource://gre/modules/ShortcutUtils.sys.mjs";
 
 const PREF = "zen.tabs.show-shortcut-hints";
 const EVENTS = [
@@ -51,8 +50,8 @@ class nsZenTabShortcutHints extends nsZenDOMOperatedFeature {
       return;
     }
     this.#enabled = true;
-    for (const name of EVENTS) {
-      window.addEventListener(name, this, true);
+    for (const eventName of EVENTS) {
+      window.addEventListener(eventName, this, true);
     }
     this.#observer = new MutationObserver(() => this.handleEvent());
     this.#observer.observe(gBrowser.tabContainer, {
@@ -86,8 +85,8 @@ class nsZenTabShortcutHints extends nsZenDOMOperatedFeature {
     }
     this.#observer?.disconnect();
     this.#observer = null;
-    for (const name of EVENTS) {
-      window.removeEventListener(name, this, true);
+    for (const eventName of EVENTS) {
+      window.removeEventListener(eventName, this, true);
     }
     for (const hint of document.querySelectorAll(".zen-tab-shortcut-hint")) {
       hint.remove();
