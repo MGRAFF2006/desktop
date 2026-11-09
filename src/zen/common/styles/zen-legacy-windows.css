@@ -38,6 +38,7 @@
 
   treechildren::-moz-tree-row(selected) {
     background-color: var(--button-background-color-primary);
+    color: var(--button-text-color-primary);
   }
 
   treechildren::-moz-tree-image(selected),

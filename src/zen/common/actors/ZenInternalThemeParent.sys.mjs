@@ -24,16 +24,17 @@ export class ZenInternalThemeParent extends JSWindowActorParent {
       "zen.theme.accent-color",
       "AccentColor"
     );
-    const scheme = Services.prefs.getIntPref("zen.view.window.scheme", 2);
+    let scheme = Services.prefs.getIntPref("zen.view.window.scheme", 2);
+    if (this.browsingContext.originAttributes.privateBrowsingId) {
+      scheme = 0;
+    } else if (![0, 1, 2].includes(scheme)) {
+      scheme = 2;
+    }
     this.sendAsyncMessage("ZenInternalTheme:Update", {
       accent: /^(?:AccentColor|#[\da-f]{3}|#[\da-f]{6})$/i.test(accent)
         ? accent
         : "AccentColor",
-      scheme: this.browsingContext.originAttributes.privateBrowsingId
-        ? 0
-        : [0, 1, 2].includes(scheme)
-          ? scheme
-          : 2,
+      scheme,
     });
   }
 
