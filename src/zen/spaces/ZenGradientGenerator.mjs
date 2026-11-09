@@ -279,8 +279,10 @@ export class nsZenThemePicker extends nsZenMultiWindowFeature {
     if (!workspace) {
       return;
     }
-    for (const workspace of gZenWorkspaces.getWorkspaces()) {
-      gZenWorkspaces.workspaceElement(workspace.uuid)?.onGradientCacheChanged();
+    for (const cachedWorkspace of gZenWorkspaces.getWorkspaces()) {
+      gZenWorkspaces
+        .workspaceElement(cachedWorkspace.uuid)
+        ?.onGradientCacheChanged();
     }
     const rendered = this.getGradientForWorkspace(workspace);
     this.browserBackgroundElement.style.setProperty(
