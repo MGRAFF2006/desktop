@@ -3,6 +3,43 @@
 
 "use strict";
 
+add_task(async function test_LazyRootInsertionPreservesWorkspacePeriphery() {
+  await gZenWorkspaces.promiseInitialized;
+  const strip = gZenWorkspaces.activeWorkspaceElement.tabsContainer;
+  const periphery = strip.lastElementChild;
+  const tab = gBrowser.addTrustedTab("about:blank", {
+    createLazyBrowser: true,
+    inBackground: true,
+    elementIndex: Infinity,
+  });
+  try {
+    Assert.ok(tab, "A lazy root tab can be registered with SessionStore");
+    Assert.equal(
+      tab.parentElement,
+      strip,
+      "The tab uses the active workspace root"
+    );
+    Assert.equal(
+      strip.lastElementChild,
+      periphery,
+      "The periphery remains last"
+    );
+    Assert.ok(
+      gBrowser.tabs.includes(tab),
+      "The tab remains in the native tab list"
+    );
+    Assert.equal(
+      gBrowser.tabs[tab.index],
+      tab,
+      "The inserted tab has a native position"
+    );
+  } finally {
+    if (tab) {
+      BrowserTestUtils.removeTab(tab);
+    }
+  }
+});
+
 add_task(async function test_MirroredFolderKeepsItsOwnSpace() {
   await gZenWorkspaces.promiseInitialized;
   const spaceA = await gZenWorkspaces.createAndSaveWorkspace("space A");

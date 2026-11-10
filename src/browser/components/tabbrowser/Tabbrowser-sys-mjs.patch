@@ -758,7 +758,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
        const tabContainer = pinned
          ? this.tabContainer.pinnedTabsContainer
 -        : this.tabContainer;
-+        : (this.documentGlobal.gZenWorkspaces.activeWorkspaceStrip || this.tabContainer);
++        : this.tabContainer;
 +      if (itemAfter) {
 +        itemAfter.before(tab);
 +      } else {
