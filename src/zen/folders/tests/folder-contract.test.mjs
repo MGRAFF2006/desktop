@@ -183,6 +183,16 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   assert.equal(adopted.collapsed, true);
   assert.equal(root.deleted, true);
   assert.equal(inner.deleted, true);
+  assert.equal(
+    root.removedByAdoption,
+    true,
+    "source removal carries native adoption lifecycle state"
+  );
+  assert.equal(
+    inner.saveOnWindowClose,
+    false,
+    "adopted subfolders are not saved as user-closed groups"
+  );
 
   const synced = source("synced", [tab]);
   context.gBrowser.adoptTab = child => ({ ...child });
