@@ -162,7 +162,16 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   const tab = { id: "child", pinned: true, hasAttribute: () => false };
   const inner = source("inner", [tab]);
   const root = source("root", [inner]);
+  const moves = [],
+    groupMoves = [];
   context.gBrowser = {
+    moveTabTo(item) {
+      moves.push(item);
+    },
+    zenHandleTabMove(item, callback) {
+      groupMoves.push(item);
+      callback();
+    },
     adoptTab: child => {
       inner.allItems = inner.allItems.filter(item => item !== child);
       return { ...child, pinned: false };
@@ -177,7 +186,17 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
     isTab: item => !item.isZenFolder && !targets.has(item.id),
     tabContainer: { _invalidateCachedTabs() {} },
   };
-  const adopted = folders.adoptFolder(root);
+  const adopted = folders.adoptFolder(root, { tabIndex: 9 });
+  assert.deepEqual(
+    moves,
+    [adopted],
+    "only the outermost folder uses the requested root position"
+  );
+  assert.deepEqual(
+    groupMoves,
+    [targets.get("inner")],
+    "adopted nested folders emit native move notifications"
+  );
   assert.equal(adopted.children[0], targets.get("inner"));
   assert.equal(adopted.children[0].children[0].pinned, true);
   assert.equal(adopted.collapsed, true);

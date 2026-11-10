@@ -907,6 +907,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
           saveOnWindowClose: source.saveOnWindowClose,
           workspaceId: gZenWorkspaces.activeWorkspace,
         });
+    folder.pinned = source.pinned;
     const icon = source.iconURL;
     const selected = source.documentGlobal.gBrowser.selectedTab;
     for (const item of [...source.allItems]) {
@@ -920,9 +921,11 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
           );
       let adopted;
       if (item.isZenFolder) {
-        adopted = this.adoptFolder(item, options);
+        adopted = this.adoptFolder(item, { selectTab: options.selectTab });
       } else if (gBrowser.isTabGroup(item)) {
-        adopted = gBrowser.adoptTabGroup(item, options);
+        adopted = gBrowser.adoptTabGroup(item, {
+          selectTab: options.selectTab,
+        });
       } else {
         adopted = gBrowser.adoptTab(item, {
           selectTab: !!options.selectTab && item === selected,
@@ -952,7 +955,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       if (gBrowser.isTab(adopted)) {
         folder.addTabs([adopted]);
       } else {
-        folder.appendChild(adopted);
+        gBrowser.zenHandleTabMove(adopted, () => folder.appendChild(adopted));
       }
     }
     if (icon) {
