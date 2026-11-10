@@ -21,7 +21,8 @@ add_task(
       await SpecialPowers.pushPrefEnv({
         set: [["zen.window-sync.sync-only-pinned-tabs", pinnedOnly]],
       });
-      for (const switched of [false, true]) {
+      for (const selection of ["nested", "parent", "inactive"]) {
+        const switched = selection === "inactive";
         await SpecialPowers.pushPrefEnv({
           set: [["zen.window-sync.enabled", false]],
         });
@@ -107,8 +108,9 @@ add_task(
               "Fixture is inactive"
             );
           } else {
-            // Cover the selected browser reuse contract inside an old folder.
-            source.gBrowser.selectedTab = tab;
+            // Reuse a browser from both direct and nested old folder contents.
+            source.gBrowser.selectedTab =
+              selection === "nested" ? nestedTab : tab;
           }
           await Promise.all(
             source.gZenWorkspaces.allStoredTabs.map(t =>
@@ -135,7 +137,7 @@ add_task(
               Assert.equal(
                 nodes.length,
                 1,
-                "Exactly one restored folder per ID"
+                `Exactly one restored folder per ID (${selection}, pinned-only ${pinnedOnly})`
               );
               const node = nodes[0];
               Assert.equal(

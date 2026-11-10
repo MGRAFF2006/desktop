@@ -364,8 +364,8 @@ index da2abe1dedd062a8167575623d6c6212de645f23..20637ac4be303cd70e2afa1eb5a931e2
 +      const oldTabs = [...aWindow.gZenWorkspaces.allStoredTabs];
 +      const oldGroups = [...aWindow.gZenWorkspaces.allTabGroups];
 +      // Firefox may reuse the selected browser. Keep it alive, but detach it
-+      // from the old tree before new groups reuse the saved IDs.
-+      if (tabbrowser.selectedTab.group) {
++      // from every ancestor before new groups reuse the saved IDs.
++      while (tabbrowser.selectedTab.group) {
 +        tabbrowser.ungroupTab(tabbrowser.selectedTab);
 +      }
 +      for (const tab of oldTabs.reverse()) {
