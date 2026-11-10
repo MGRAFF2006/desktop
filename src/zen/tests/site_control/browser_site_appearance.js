@@ -44,7 +44,7 @@ add_task(
       gZenBoostsManager.makeBoostActiveForDomain(APPEARANCE_HOST, boost.id);
       gZenBoostsManager.saveBoostToStore(boost);
       try {
-        await SpecialPowers.spawn(browser, [], () => {
+        await SpecialPowers.spawn(browser, [], async () => {
           const swatch = content.document.createElement("div");
           swatch.style.cssText =
             "position:fixed;left:0;top:0;width:100px;height:100px;background:white;z-index:2147483647";
@@ -55,7 +55,11 @@ add_task(
           const ctx = media.getContext("2d");
           ctx.fillStyle = "rgb(20, 80, 200)";
           ctx.fillRect(0, 0, 100, 50);
-          swatch.appendChild(media);
+          const image = content.document.createElement("img");
+          image.src = media.toDataURL("image/png");
+          image.style.cssText = media.style.cssText;
+          await image.decode();
+          swatch.appendChild(image);
           content.document.body.appendChild(swatch);
         });
         const before = await appearancePixels(browser);
