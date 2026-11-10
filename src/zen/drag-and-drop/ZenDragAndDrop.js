@@ -1166,7 +1166,10 @@
           this._placeOf(element),
         ])
       );
-      super.handle_drop(event);
+      const handledFolderDrop = this._handleFolderDrop(event);
+      if (!handledFolderDrop) {
+        super.handle_drop(event);
+      }
       this.#maybeClearVerticalPinnedGridDragOver();
       this.#handle_dropSwitchSpace(event);
       this._handle_dropCreateSplit(event);
@@ -1174,6 +1177,115 @@
       if (!toSplit) {
         this.#landDragImage(event, placesBefore);
       }
+    }
+
+    /** Move native folder rows and their contents as a tree, preserving pin flags. */
+    _handleFolderDrop(event) {
+      const dragged = event.dataTransfer.mozGetDataAt(TAB_DROP_TYPE, 0);
+      if (!dragged || dragged.documentGlobal !== window || !dragged._dragData) {
+        return false;
+      }
+      const { dropElement: target, dropBefore } = dragged._dragData;
+      if (!target || dropBefore === undefined || this._splitDropReady) {
+        return false;
+      }
+      const source = isTabGroupLabel(dragged) ? dragged.group : dragged;
+      const targetFolder = isTabGroupLabel(target) ? target.group : null;
+      const sibling = target.classList?.contains("tab-group-label-container")
+        ? target.parentElement
+        : target;
+      const destination = targetFolder || sibling.group;
+      if (!(
+        source.isZenFolder ||
+        source.group?.isZenFolder ||
+        destination?.isZenFolder
+      )) {
+        return false;
+      }
+      if (
+        source.hasAttribute("zen-essential") ||
+        sibling.hasAttribute("zen-essential")
+      ) {
+        return false;
+      }
+      const workspace = gZenWorkspaces.activeWorkspaceElement;
+      const container = destination?.isZenFolder
+        ? destination.groupContainer
+        : sibling.parentElement;
+      if (!container || !workspace.contains(container)) {
+        return false;
+      }
+      let items = (dragged._dragData.movingTabs || [dragged]).map(item =>
+        isTabGroupLabel(item) ? item.group : item
+      );
+      items = [...new Set(items)].filter(
+        item =>
+          !items.some(parent => parent !== item && parent.contains?.(item))
+      );
+      // Validate the whole move before changing any node. A rejected drop must
+      // not fall through to Firefox's flat tab movement and partially move it.
+      if (
+        items.some(
+          item =>
+            item === sibling ||
+            item.contains?.(container) ||
+            !gZenFolders.canDropElement(item, { group: destination })
+        )
+      ) {
+        return true;
+      }
+      let anchor = targetFolder
+        ? null
+        : dropBefore
+          ? sibling
+          : sibling.nextSibling;
+      if (!destination?.isZenFolder && !anchor) {
+        anchor = container.querySelector(
+          "#tabbrowser-arrowscrollbox-periphery"
+        );
+      }
+      for (const item of items) {
+        let itemContainer = container;
+        let itemAnchor = anchor;
+        // A tab leaving the tree keeps its pin flag and rejoins the matching
+        // root section. Folder rows can change sections independently of tabs.
+        if (!destination?.isZenFolder && !item.isZenFolder) {
+          const section = item.pinned
+            ? workspace.pinnedTabsContainer
+            : workspace.tabsContainer;
+          if (section !== container) {
+            itemContainer = section;
+            itemAnchor = section.querySelector(
+              item.pinned
+                ? ".pinned-tabs-container-separator"
+                : "#tabbrowser-arrowscrollbox-periphery"
+            );
+          }
+        }
+        gBrowser.zenHandleTabMove(item, () => {
+          if (item.isZenFolder && !destination?.isZenFolder) {
+            item.pinned = container === workspace.pinnedTabsContainer;
+          }
+          item.setAttribute("zen-workspace-id", gZenWorkspaces.activeWorkspace);
+          for (const tab of [
+            ...(item.tabs || []),
+            ...(item.querySelectorAll?.("zen-folder") || []),
+          ]) {
+            tab.setAttribute(
+              "zen-workspace-id",
+              gZenWorkspaces.activeWorkspace
+            );
+          }
+          itemContainer.insertBefore(item, itemAnchor);
+        });
+      }
+      gBrowser.tabContainer._invalidateCachedTabs();
+      gZenWorkspaces.updateTabsContainers();
+      if (isTabGroupLabel(dragged)) {
+        this._setIsDraggingTabGroup(source, false);
+        this._expandGroupOnDrop(dragged);
+      }
+      return true;
     }
 
     /**
@@ -1692,18 +1804,6 @@
       ) {
         this.clearDragOverVisuals();
         dropElement = null;
-        return [dropBefore, dropElement];
-      }
-      if (
-        isTabGroupLabel(draggedTab) &&
-        draggedTab.group?.isZenFolder &&
-        (((isTab(dropElement) ||
-          dropElement.hasAttribute("split-view-group")) &&
-          (!dropElement.pinned || dropElement.hasAttribute("zen-essential"))) ||
-          showIndicatorUnderNewTabButton)
-      ) {
-        dropElement = null;
-        this.clearDragOverVisuals();
         return [dropBefore, dropElement];
       }
       if (

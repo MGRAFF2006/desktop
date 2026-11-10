@@ -334,7 +334,12 @@ class nsZenPinnedTabManager extends nsZenDOMOperatedFeature {
               }
               return tab;
             })
-            .filter(tab => tab?.pinned)
+            .filter(
+              tab =>
+                tab &&
+                !tab.hasAttribute("zen-empty-tab") &&
+                (tab.pinned || (folderToUnload && alwaysUnload))
+            )
         ),
       ];
 
@@ -356,6 +361,11 @@ class nsZenPinnedTabManager extends nsZenDOMOperatedFeature {
         behavior = behavior.includes("reset")
           ? "reset-unload-switch"
           : "unload-switch";
+      }
+
+      // Folder unload is explicit and must never reset ordinary tab history.
+      if (folderToUnload && alwaysUnload) {
+        behavior = "unload-switch";
       }
 
       switch (behavior) {
@@ -813,6 +823,17 @@ class nsZenPinnedTabManager extends nsZenDOMOperatedFeature {
       ownedTabs = ownedTabs.reverse();
     }
     movingTabs = [...ownedTabs];
+    // Keep a folder as a single row. The native folder adopter handles its
+    // descendants; flattening here would pin/unpin and detach the source tree.
+    if (
+      movingTabs.some(
+        tab =>
+          tab.isZenFolder ||
+          (gBrowser.isTabGroupLabel(tab) && tab.group?.isZenFolder)
+      )
+    ) {
+      return [draggedTab, ownedTabs];
+    }
     if (fromDifferentWindow) {
       gBrowser.addRangeToMultiSelectedTabs(
         gBrowser.tabContainer.dragAndDropElements[dropIndex],
