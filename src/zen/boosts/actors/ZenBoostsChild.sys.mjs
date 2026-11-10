@@ -276,7 +276,9 @@ export class ZenBoostsChild extends JSWindowActorChild {
         }
         break;
       case "ZenBoost:ToggleZapMode":
-        this.#toggleZapMode(message.data?.mode === "focus" ? "focus" : "zap");
+        await this.#toggleZapMode(
+          message.data?.mode === "focus" ? "focus" : "zap"
+        );
         break;
       case "ZenBoost:TogglePickerMode":
         if (this.#currentState === ZenBoostsChild.STATES.NONE) {
@@ -544,6 +546,9 @@ export class ZenBoostsChild extends JSWindowActorChild {
   }
 
   async #toggleZapMode(mode) {
+    if (this.#destroyed || !this.manager?.isCurrentGlobal) {
+      return;
+    }
     if (this.#currentState === ZenBoostsChild.STATES.ZAP) {
       const sameMode = this.#zapMode === mode;
       this.disableZapMode();
@@ -556,6 +561,10 @@ export class ZenBoostsChild extends JSWindowActorChild {
 
     if (mode === "focus") {
       const matching = await this.#matchingFocusSelectors();
+      // A navigation can retire this document while the lookup is pending.
+      if (this.#destroyed || !this.manager?.isCurrentGlobal) {
+        return;
+      }
       if (matching.length) {
         this.clearZapSelectors("focus", matching);
         this.sendNotify("zap-list-update");
@@ -563,7 +572,7 @@ export class ZenBoostsChild extends JSWindowActorChild {
         return;
       }
     }
-    this.#startZappingOverlay(mode);
+    await this.#startZappingOverlay(mode);
   }
 
   /**
@@ -602,6 +611,9 @@ export class ZenBoostsChild extends JSWindowActorChild {
   async #matchingFocusSelectors(boostData = null) {
     const data =
       boostData ?? (await this.getWebsiteBoost())?.boostEntry?.boostData;
+    if (this.#destroyed || !this.manager?.isCurrentGlobal) {
+      return [];
+    }
     return (data?.focusSelectors ?? []).filter(selector => {
       try {
         return !!this.document.querySelector(selector);
