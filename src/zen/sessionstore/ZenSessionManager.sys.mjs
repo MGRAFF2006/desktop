@@ -17,10 +17,23 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///browser/components/sessionstore/SessionStartup.sys.mjs",
   TabStateFlusher:
     "moz-src:///browser/components/sessionstore/TabStateFlusher.sys.mjs",
-  gWindowSyncEnabled: "resource:///modules/zen/ZenWindowSync.sys.mjs",
-  gSyncOnlyPinnedTabs: "resource:///modules/zen/ZenWindowSync.sys.mjs",
   DeferredTask: "resource://gre/modules/DeferredTask.sys.mjs",
 });
+
+// Restore decisions must follow preference changes in this running session.
+// WindowSync's exported booleans capture only its initial preference values.
+XPCOMUtils.defineLazyPreferenceGetter(
+  lazy,
+  "gWindowSyncEnabled",
+  "zen.window-sync.enabled",
+  true
+);
+XPCOMUtils.defineLazyPreferenceGetter(
+  lazy,
+  "gSyncOnlyPinnedTabs",
+  "zen.window-sync.sync-only-pinned-tabs",
+  true
+);
 
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
