@@ -1425,7 +1425,102 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
      if (selectTab) {
        this.selectedTab = newTab;
-@@ -9477,7 +9884,7 @@
+@@ -8703,7 +9110,10 @@
+           if (!selectedTab.group && nextTab.group) {
+             if (nextTabOrSplitview.group.collapsed) {
+               // Skip over collapsed tab group.
+-              nextTabOrSplitview.group.after(selectedTabOrSplitview);
++              this.documentGlobal.gZenFolders.placeUngroupedItem(
++                selectedTabOrSplitview,
++                nextTabOrSplitview.group
++              );
+             } else {
+               // Enter first position of tab group.
+               nextTabOrSplitview.group.insertBefore(
+@@ -8713,7 +9123,10 @@
+             }
+           } else if (selectedTab.group != nextTab.group) {
+             // Standalone tab after tab group.
+-            selectedTab.group.after(selectedTabOrSplitview);
++            this.documentGlobal.gZenFolders.placeUngroupedItem(
++              selectedTabOrSplitview,
++              selectedTab.group
++            );
+           } else {
+             nextTabOrSplitview.after(selectedTabOrSplitview);
+           }
+@@ -8721,9 +9134,16 @@
+         { metricsContext }
+       );
+     } else if (selectedTab.group) {
+-      // selectedTab is the last tab and is grouped.
+-      // remove it from its group.
+-      selectedTab.group.after(selectedTabOrSplitview);
++      // Leave the group through the native move lifecycle, even at the edge.
++      this.#handleTabMove(
++        selectedTab,
++        () =>
++          this.documentGlobal.gZenFolders.placeUngroupedItem(
++            selectedTabOrSplitview,
++            selectedTab.group
++          ),
++        { metricsContext }
++      );
+     }
+   }
+
+@@ -8754,14 +9174,22 @@
+           if (!selectedTab.group && previousTab.group) {
+             if (previousTab.group.collapsed) {
+               // Skip over collapsed tab group.
+-              previousTab.group.before(selectedTabOrSplitview);
++              this.documentGlobal.gZenFolders.placeUngroupedItem(
++                selectedTabOrSplitview,
++                previousTab.group,
++                true
++              );
+             } else {
+               // Enter last position of tab group.
+               previousTab.group.append(selectedTabOrSplitview);
+             }
+           } else if (selectedTab.group != previousTab.group) {
+             // Standalone tab before tab group.
+-            selectedTab.group.before(selectedTabOrSplitview);
++            this.documentGlobal.gZenFolders.placeUngroupedItem(
++              selectedTabOrSplitview,
++              selectedTab.group,
++              true
++            );
+           } else {
+             previousTabOrSplitview.before(selectedTabOrSplitview);
+           }
+@@ -8769,12 +9197,19 @@
+         { metricsContext }
+       );
+     } else if (selectedTab.group) {
+-      // selectedTab is the first tab and is grouped.
+-      // remove it from its group.
+-      selectedTab.group.before(selectedTabOrSplitview);
+-    }
+-  }
+-
++      // Leave the group through the native move lifecycle, even at the edge.
++      this.#handleTabMove(
++        selectedTab,
++        () =>
++          this.documentGlobal.gZenFolders.placeUngroupedItem(
++            selectedTabOrSplitview,
++            selectedTab.group,
++            true
++          ),
++        { metricsContext }
++      );
++    }
++  }
+   /**
+    * Moves a tab to the start of the tab strip, out of its group if it is in
+    * one.
+@@ -9477,7 +9912,7 @@
        // preventDefault(). It will still raise the window if appropriate.
        return;
      }
@@ -1434,7 +1529,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      this.documentGlobal.focus();
      aEvent.preventDefault();
    }
-@@ -9494,7 +9901,6 @@
+@@ -9494,7 +9929,6 @@
 
    on_TabGroupCollapse(aEvent) {
      aEvent.target.tabs.forEach(tab => {
@@ -1442,7 +1537,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      });
    }
 
-@@ -9843,7 +10249,9 @@
+@@ -9843,7 +10277,9 @@
 
        let filter = Tabbrowser.#tabFilters.get(tab);
        if (filter) {
@@ -1452,7 +1547,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
          let listener = Tabbrowser.#tabListeners.get(tab);
          if (listener) {
-@@ -10648,6 +11056,7 @@
+@@ -10648,6 +11084,7 @@
            aWebProgress.isTopLevel
          ) {
            this._tab.setAttribute("busy", "true");
@@ -1460,7 +1555,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
            this.#tabbrowser._tabAttrModified(this._tab, ["busy"]);
            if (this._tab.selected) {
              TabProgressListener.#tabsNotSelectedSinceLoad.delete(this._tab);
-@@ -10731,6 +11140,7 @@
+@@ -10731,6 +11168,7 @@
        // known defaults. Note we use the original URL since about:newtab
        // redirects to a prerendered page.
        const shouldRemoveFavicon =
@@ -1468,7 +1563,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
          !this._browser.mIconURL &&
          !ignoreBlank &&
          !(originalLocation.spec in FAVICON_DEFAULTS);
-@@ -10908,13 +11318,6 @@
+@@ -10908,13 +11346,6 @@
            this._browser.originalURI = aRequest.originalURI;
          }
 

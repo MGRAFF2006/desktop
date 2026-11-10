@@ -45,3 +45,5 @@ support-files = [
 ["browser_folder_tree_drop.js"]
 
 ["browser_folder_mixed_pin_contracts.js"]
+
+["browser_folder_keyboard_move.js"]
