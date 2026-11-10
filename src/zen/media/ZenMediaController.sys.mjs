@@ -14,6 +14,8 @@ XPCOMUtils.defineLazyPreferenceGetter(
   true
 );
 
+const VOLUME_GAIN_PREF = "zen.media.volume-gain-percent";
+
 const MAX_STACKED_CARDS = 3;
 const MAX_PEEK_LEVELS = 2;
 
@@ -75,6 +77,7 @@ class ZenMediaCard {
 
     this.updatePipButton();
     this.updateMuteState();
+    this.updateVolumeGain();
   }
 
   get isSharing() {
@@ -95,7 +98,11 @@ class ZenMediaCard {
 
   #initListeners() {
     this.element.addEventListener("mousedown", event => {
-      if (event.target.closest(":is(toolbarbutton,.zen-media-progress-hbox)")) {
+      if (
+        event.target.closest(
+          ":is(toolbarbutton,.zen-media-progress-hbox,.zen-media-gain-controls)"
+        )
+      ) {
         return;
       }
       this.onFocus();
@@ -120,6 +127,8 @@ class ZenMediaCard {
         this.onPlayNext();
       } else if (button.matches(".zen-media-playpause-button")) {
         this.onToggle();
+      } else if (button.matches(".zen-media-gain-reset")) {
+        Services.prefs.setIntPref(VOLUME_GAIN_PREF, 100);
       } else if (button.matches(".zen-media-mute-mic-button")) {
         this.onMicrophoneMuteToggle();
       } else if (button.matches(".zen-media-mute-camera-button")) {
@@ -127,8 +136,34 @@ class ZenMediaCard {
       }
     });
 
+    this.element
+      .querySelector(".zen-media-gain-slider")
+      .addEventListener("input", event => {
+        const percent = Number(event.target.value);
+        if (Number.isFinite(percent)) {
+          Services.prefs.setIntPref(
+            VOLUME_GAIN_PREF,
+            Math.max(100, Math.min(200, Math.round(percent)))
+          );
+        }
+      });
     this.progressBar.addEventListener("input", this.onSeekDrag.bind(this));
     this.progressBar.addEventListener("change", this.onSeekComplete.bind(this));
+  }
+
+  updateVolumeGain() {
+    const percent = Math.max(
+      100,
+      Math.min(200, Services.prefs.getIntPref(VOLUME_GAIN_PREF, 100))
+    );
+    this.element.querySelector(".zen-media-gain-slider").value = percent;
+    this.window.document.l10n.setAttributes(
+      this.element.querySelector(".zen-media-gain-value"),
+      "zen-media-gain-value",
+      { percent }
+    );
+    this.element.querySelector(".zen-media-gain-reset").disabled =
+      percent === 100;
   }
 
   #onPositionstateChange(event) {
@@ -476,6 +511,7 @@ class ZenMediaCard {
 export class ZenMediaController extends ZenUIComponent {
   #cards = new Map();
   #cardTemplate = null;
+  #volumeGainObserver = null;
 
   mediaControlBar = null;
 
@@ -498,6 +534,13 @@ export class ZenMediaController extends ZenUIComponent {
         card.onTabSelect();
       }
     });
+
+    this.#volumeGainObserver = () => {
+      for (const card of this.#cards.values()) {
+        card.updateVolumeGain();
+      }
+    };
+    Services.prefs.addObserver(VOLUME_GAIN_PREF, this.#volumeGainObserver);
 
     const onTabDiscardedOrClosed = this.onTabDiscardedOrClosed.bind(this);
 
@@ -644,6 +687,10 @@ export class ZenMediaController extends ZenUIComponent {
   }
 
   uninit() {
+    if (this.#volumeGainObserver) {
+      Services.prefs.removeObserver(VOLUME_GAIN_PREF, this.#volumeGainObserver);
+      this.#volumeGainObserver = null;
+    }
     for (const card of this.#cards.values()) {
       card.teardown();
       card.element.remove();

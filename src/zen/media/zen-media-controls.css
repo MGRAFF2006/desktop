@@ -428,3 +428,35 @@
     transform: translateX(calc(-89 / 90 * 100%));
   }
 }
+
+#zen-media-controls-toolbar {
+  .zen-media-gain-controls {
+    padding: 4px 6px;
+    gap: 2px;
+    font-size: 0.9em;
+  }
+
+  .zen-media-gain-slider {
+    min-width: 0;
+    width: 100%;
+    accent-color: var(--zen-primary-color);
+  }
+
+  .zen-media-gain-slider:focus-visible {
+    outline: 2px solid currentColor;
+    outline-offset: 2px;
+  }
+
+  .zen-media-gain-value {
+    min-width: 4em;
+    text-align: end;
+  }
+
+  .zen-media-gain-help {
+    margin: 0;
+  }
+
+  .zen-media-card[media-sharing] .zen-media-gain-controls {
+    display: none;
+  }
+}
