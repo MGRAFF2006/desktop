@@ -84,3 +84,65 @@ add_task(async function test_MirroredFolderKeepsTheLiveFlag() {
     await folder.delete();
   });
 });
+
+add_task(
+  async function test_PinnedOnlyNewWindowRetainsOrdinaryFolderStructure() {
+    await SpecialPowers.pushPrefEnv({
+      set: [["zen.window-sync.sync-only-pinned-tabs", true]],
+    });
+    const { SessionSaver } = ChromeUtils.importESModule(
+      "moz-src:///browser/components/sessionstore/SessionSaver.sys.mjs"
+    );
+    let parent;
+    try {
+      await gZenWorkspaces.promiseInitialized;
+      const tab = gBrowser.addTrustedTab(
+        "https://example.com/?window-local-folder",
+        {
+          inBackground: true,
+        }
+      );
+      parent = gZenFolders.createFolder([], {
+        label: "ordinary parent",
+        pinned: false,
+        renameFolder: false,
+      });
+      const child = gZenFolders.createFolder([tab], {
+        label: "ordinary child",
+        pinned: false,
+        renameFolder: false,
+      });
+      parent.addTabs([child]);
+      await gBrowser.TabStateFlusher.flush(tab.linkedBrowser);
+      await SessionSaver.run();
+      await withNewSyncedWindow(async win => {
+        await TestUtils.waitForCondition(
+          () =>
+            win.document.getElementById(parent.id)?.isZenFolder &&
+            win.document.getElementById(child.id)?.isZenFolder,
+          "ordinary folder anchors and group states survive new-window restore"
+        );
+        const restoredParent = win.document.getElementById(parent.id);
+        const restoredChild = win.document.getElementById(child.id);
+        Assert.equal(
+          restoredChild.group,
+          restoredParent,
+          "nested ordinary folders retain their parent despite pinned-only content sync"
+        );
+        Assert.ok(
+          !restoredParent.pinned && !restoredChild.pinned,
+          "structural restoration does not pin the folders"
+        );
+        Assert.ok(
+          !win.document.getElementById(tab.id),
+          "the original window's ordinary tab content stays excluded"
+        );
+      });
+    } finally {
+      if (parent?.isConnected) {
+        await parent.delete();
+      }
+      await SpecialPowers.popPrefEnv();
+    }
+  }
+);

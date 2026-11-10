@@ -672,6 +672,7 @@ class ZenMigrationUtilsClass {
         }
         const folder = win.gZenFolders.createFolder([], {
           label: item.title || "Folder",
+          pinned: true,
           workspaceId,
           renameFolder: false,
           insertAfter: parentFolder?.groupContainer.lastElementChild,

@@ -498,25 +498,22 @@ class nsZenSpacesSyncModel {
         if (
           scope.space &&
           !tab.zenEssential &&
-          (tab.zenWorkspace || null) === scope.space &&
-          ctx.syncableTabIds.has(tab.zenSyncId)
+          (tab.zenWorkspace || null) === scope.space
         ) {
           push(tab.zenSyncId);
         }
         continue;
       }
       if (scope.folder && groupId === scope.folder) {
-        if (ctx.syncableTabIds.has(tab.zenSyncId)) {
-          push(tab.zenSyncId);
-        }
+        push(tab.zenSyncId);
         continue;
       }
-      if (ctx.splitIds.has(groupId) || ctx.splitParents.has(groupId)) {
+      if (ctx.allSplitIds.has(groupId) || ctx.splitParents.has(groupId)) {
         const parent = ctx.splitParents.get(groupId) ?? null;
         const isDirect = scope.folder ? parent === scope.folder : !parent;
         if (isDirect) {
           if (
-            ctx.splitIds.has(groupId) &&
+            ctx.allSplitIds.has(groupId) &&
             (!scope.space || (ctx.splitWs.get(groupId) ?? null) === scope.space)
           ) {
             push(groupId);
@@ -536,7 +533,48 @@ class nsZenSpacesSyncModel {
         }
       }
     }
-    return seq;
+    // Empty folders have no descendant tab to contribute their position. Use
+    // the persisted immediate sibling edge for every direct child folder;
+    // this also keeps empty and nonempty folders interleaved with tab rows.
+    const unresolved = ctx.folders.filter(folder =>
+      scope.folder
+        ? folder.parentId === scope.folder
+        : !folder.parentId && folder.workspaceId === scope.space
+    );
+    for (let pass = 0; pass < ctx.folders.length && unresolved.length; pass++) {
+      for (let i = unresolved.length - 1; i >= 0; i--) {
+        const folder = unresolved[i];
+        const predecessor = this.#folderPredecessor(ctx, scope, folder);
+        if (predecessor && !seq.includes(predecessor)) {
+          continue;
+        }
+        const oldIndex = seq.indexOf(folder.id);
+        if (oldIndex >= 0) {
+          seq.splice(oldIndex, 1);
+        }
+        const index = predecessor ? seq.indexOf(predecessor) + 1 : 0;
+        seq.splice(index, 0, folder.id);
+        unresolved.splice(i, 1);
+      }
+    }
+    for (const folder of unresolved) {
+      push(folder.id);
+    }
+    // Resolve layout edges before filtering opted-out tab IDs. An empty
+    // folder can follow an ordinary tab that this device must not upload.
+    return seq.filter(
+      id =>
+        ctx.syncableTabIds.has(id) ||
+        ctx.folderById.has(id) ||
+        ctx.splitIds.has(id)
+    );
+  }
+
+  #folderPredecessor(ctx, scope, folder) {
+    const previous = folder.prevSiblingInfo;
+    return ctx.folderById.get(scope.folder)?.emptyTabIds?.includes(previous?.id)
+      ? null
+      : previous?.id;
   }
 
   /**
@@ -598,10 +636,11 @@ class nsZenSpacesSyncModel {
         g.tabs.every(id => syncableTabIds.has(id))
     );
     const splitIds = new Set(splits.map(g => g.groupId));
+    const allSplitIds = new Set(allSplits.map(g => g.groupId));
     const splitWs = new Map();
-    for (const tab of tabs) {
+    for (const tab of allTabs) {
       const groupId = tab.groupId || null;
-      if (groupId && splitIds.has(groupId) && !splitWs.has(groupId)) {
+      if (groupId && allSplitIds.has(groupId) && !splitWs.has(groupId)) {
         splitWs.set(groupId, tab.zenWorkspace || null);
       }
     }
@@ -622,6 +661,7 @@ class nsZenSpacesSyncModel {
       syncableTabIds,
       splits,
       splitIds,
+      allSplitIds,
       splitParents,
       splitWs,
       folderOf,
@@ -827,6 +867,7 @@ class nsZenSpacesSyncModel {
           icon: folder.userIcon || null,
           workspaceUuid: folder.workspaceId || null,
           parentFolderId: folder.parentId || null,
+          pinned: folder.pinned !== false,
           live,
           children: this.#childSequence(ctx, { folder: fid }),
         },

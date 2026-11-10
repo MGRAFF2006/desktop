@@ -1,20 +1,37 @@
 diff --git a/browser/components/extensions/parent/ext-tabs.js b/browser/components/extensions/parent/ext-tabs.js
-index f342748d4b680a5de3a8b7c90df79f7c380b9e1c..65091cf370e00a580ae2cb1fad9cde76f10c8bd9 100644
 --- a/browser/components/extensions/parent/ext-tabs.js
 +++ b/browser/components/extensions/parent/ext-tabs.js
-@@ -438,6 +438,7 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -437,6 +437,7 @@
          }
- 
+
          let tab = tabManager.getWrapper(updatedTab);
 +        if (!tab) return;
- 
+
          let changeInfo = {};
          for (let prop of needed) {
-@@ -806,6 +807,7 @@ this.tabs = class extends ExtensionAPIPersistent {
+@@ -805,6 +806,7 @@
                });
              }
- 
+
 +            window.gZenCompactModeManager._nextTimeWillBeActive = active;
              let nativeTab = window.gBrowser.addTab(url, options);
              tabTracker.addTabReadyBlocker(nativeTab);
- 
+
+@@ -1138,10 +1140,13 @@
+             // the current set of pinned tabs. Unpinned tabs, likewise, can only
+             // be moved to a position after the current set of pinned tabs.
+             // Attempts to move a tab to an illegal position are ignored.
+-            let numPinned = gBrowser.pinnedTabCount;
+-            let ok = nativeTab.pinned
+-              ? insertionPoint <= numPinned
+-              : insertionPoint >= numPinned;
++            const rootBoundary = gBrowser.zenPinnedBoundary(gBrowser.tabs);
++            const sourceFolder = nativeTab.closest("zen-folder");
++            const targetFolder = gBrowser.tabs[insertionPoint]?.closest("zen-folder");
++            const withinFolder = isSameWindow && sourceFolder && sourceFolder === targetFolder;
++            let ok = withinFolder || (nativeTab.pinned
++              ? insertionPoint <= rootBoundary
++              : insertionPoint >= rootBoundary);
+             if (!ok) {
+               continue;
+             }
