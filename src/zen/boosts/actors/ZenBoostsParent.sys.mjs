@@ -5,6 +5,7 @@
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   gZenBoostsManager: "resource:///modules/zen/boosts/ZenBoostsManager.sys.mjs",
 });
 
@@ -128,6 +129,12 @@ export class ZenBoostsParent extends JSWindowActorParent {
    * @returns {Promise<object | null>} A promise that resolves to the boost data or null.
    */
   async receiveMessage(message) {
+    // Boosts use a shared persistent host store. Private pages must neither
+    // read saved styles nor modify that store through actor messages.
+    const browser = this.browsingContext.top.embedderElement;
+    if (!browser || lazy.PrivateBrowsingUtils.isBrowserPrivate(browser)) {
+      return null;
+    }
     switch (message.name) {
       case "ZenBoost:OpenInspector": {
         const { require } = ChromeUtils.importESModule(

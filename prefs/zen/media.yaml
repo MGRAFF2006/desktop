@@ -4,3 +4,11 @@
 
 - name: media.eme.enabled
   value: true
+
+# Decoder-backed HTML audio/video playback in every tab; excludes Web Audio
+# and real-time communication. Read atomically on the audio callback thread.
+- name: zen.media.volume-gain-percent
+  cpptype: RelaxedAtomicInt32
+  value: 100
+  mirror: always
+  type: static

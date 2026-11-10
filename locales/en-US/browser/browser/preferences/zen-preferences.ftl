@@ -235,3 +235,7 @@ zen-tabs-show-shortcut-hints =
 zen-tabs-fade-unloaded-favicons =
     .label = Dim favicons on restored or automatically unloaded tabs
     .tooltiptext = Manually unloaded tabs keep their existing indicator when this is off.
+
+zen-square-amber-appearance =
+    .label = Dark square browser with amber highlights
+zen-square-amber-description = Applies to browser controls only. Turn off to restore your theme. System contrast colors take priority. Website appearance is controlled separately in the site panel.

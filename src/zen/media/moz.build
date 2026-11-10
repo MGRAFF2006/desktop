@@ -5,3 +5,11 @@
 EXTRA_JS_MODULES.zen.media += [
     "ZenMediaController.sys.mjs",
 ]
+
+EXPORTS.mozilla += [
+    "ZenMediaGain.h",
+]
+
+TEST_DIRS += [
+    "gtest",
+]

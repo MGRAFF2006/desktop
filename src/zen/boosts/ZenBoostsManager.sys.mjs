@@ -2,6 +2,7 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+import { PrivateBrowsingUtils } from "resource://gre/modules/PrivateBrowsingUtils.sys.mjs";
 import { JSONFile } from "resource://gre/modules/JSONFile.sys.mjs";
 import { nsZenBoostStyles } from "resource:///modules/zen/boosts/ZenBoostStyles.sys.mjs";
 
@@ -76,6 +77,27 @@ class nsZenBoostsManager {
       return domainEntry.activeBoostId;
     }
     return null;
+  }
+
+  /**
+   * Apply native color inversion to this host, preserving its CSS and edits.
+   * This is an explicit option for light sites, not a global page filter.
+   *
+   * @param {string} domain - Host whose active boost should be updated.
+   * @param {boolean} enabled - Whether to darken the host.
+   */
+  setSiteDarkening(domain, enabled) {
+    let boost = this.loadActiveBoostFromStore(domain);
+    if (!boost) {
+      if (!enabled) {
+        return;
+      }
+      boost = this.createNewBoost(domain);
+    }
+    boost.boostEntry.boostData.smartInvert = enabled;
+    boost.boostEntry.boostData.changeWasMade = true;
+    this.makeBoostActiveForDomain(domain, boost.id);
+    this.saveBoostToStore(boost);
   }
 
   /**
@@ -630,11 +652,20 @@ class nsZenBoostsManager {
    * @param {Boost} boost - The boost which will be edited
    * @param {nsIURI} domainUri - The boost which will be edited
    * @param {object} [options]
+   * @param {boolean} [options.code] - Open the CSS view directly
    * @param {Element} [options.browser] - Browser showing the site when it is
    *   not the selected tab, e.g. a detached glance
    * @returns {Window|null} The instanced editor window
    */
-  openBoostWindow(parentWindow, boost, domainUri, { browser = null } = {}) {
+  openBoostWindow(
+    parentWindow,
+    boost,
+    domainUri,
+    { browser = null, code = false } = {}
+  ) {
+    if (PrivateBrowsingUtils.isWindowPrivate(parentWindow)) {
+      return null;
+    }
     if (!this.canBoostSite(domainUri)) {
       console.error(
         "[ZenBoostsManager] Cannot open editor for boost with invalid domain."
@@ -725,6 +756,7 @@ class nsZenBoostsManager {
     );
 
     editor.browser = browser;
+    editor.openCode = code;
     // Give the domain
     editor.domain = domain;
     editor.openerWindow = parentWindow;

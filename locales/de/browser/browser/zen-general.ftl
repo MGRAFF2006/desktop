@@ -141,3 +141,13 @@ zen-window-sync-migration-dialog-learn-more = Mehr erfahren
 zen-window-sync-migration-dialog-accept = Verstanden
 zen-appmenu-new-blank-window = 
     .label = Neues leeres Fenster
+
+# Gilt für die native Audio-/Videowiedergabe in allen Tabs.
+zen-media-gain-label = Medienlautstärke — alle Tabs
+zen-media-gain-slider =
+    .aria-label = Medienlautstärke für alle Tabs
+zen-media-gain-value = { $percent }%
+zen-media-gain-reset =
+    .label = Zurücksetzen
+    .tooltiptext = Medienlautstärke in allen Tabs auf 100% zurücksetzen
+zen-media-gain-help = Nur Audio- und Videowiedergabe; ohne Web Audio und Anrufe. Wird für diesen Browser gespeichert. Verstärkung kann laute Audiosignale verzerren.

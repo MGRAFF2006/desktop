@@ -25,6 +25,7 @@ ChromeUtils.defineLazyGetter(lazy, "l10n", () => {
 });
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   SessionStore:
     "moz-src:///browser/components/sessionstore/SessionStore.sys.mjs",
 });
@@ -151,6 +152,10 @@ const globalActionsTemplate = [
         return false;
       }
 
+      if (lazy.PrivateBrowsingUtils.isWindowPrivate(window)) {
+        return false;
+      }
+
       // Keep this action consistent with the rest of the Boosts UI.
       if (!Services.prefs.getBoolPref("zen.boosts.enabled", false)) {
         return false;
@@ -160,6 +165,9 @@ const globalActionsTemplate = [
       return !!uri?.schemeIs && (uri.schemeIs("http") || uri.schemeIs("https"));
     },
     command: window => {
+      if (lazy.PrivateBrowsingUtils.isWindowPrivate(window)) {
+        return;
+      }
       const uri = window.gBrowser.currentURI;
       if (!uri?.schemeIs || !(uri.schemeIs("http") || uri.schemeIs("https"))) {
         return;

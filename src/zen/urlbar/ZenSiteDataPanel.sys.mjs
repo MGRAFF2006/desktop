@@ -12,6 +12,7 @@ const ADDONS_BUTTONS_HIDDEN = Services.prefs.getBoolPref(
 const lazy = {};
 
 ChromeUtils.defineESModuleGetters(lazy, {
+  PrivateBrowsingUtils: "resource://gre/modules/PrivateBrowsingUtils.sys.mjs",
   FeatureCallout: "resource:///modules/asrouter/FeatureCallout.sys.mjs",
   gZenBoostsManager: "resource:///modules/zen/boosts/ZenBoostsManager.sys.mjs",
 });
@@ -85,6 +86,8 @@ export class nsZenSiteDataPanel {
     const kCommandIDs = [
       "zen-site-data-header-share",
       "zen-site-data-header-boost",
+      "zen-site-data-darken",
+      "zen-site-data-custom-css",
       "zen-site-data-header-bookmark",
       "zen-site-data-security-info",
       "zen-site-data-actions",
@@ -134,7 +137,9 @@ export class nsZenSiteDataPanel {
 
   checkIfTabIsBoosted() {
     const domain = this.#getCurrentDomain();
-    const isBoosted = lazy.gZenBoostsManager.registeredBoostForDomain(domain);
+    const isBoosted =
+      !lazy.PrivateBrowsingUtils.isWindowPrivate(this.window) &&
+      lazy.gZenBoostsManager.registeredBoostForDomain(domain);
     if (isBoosted) {
       this.anchor.setAttribute("boosting", "true");
     } else {
@@ -242,13 +247,32 @@ export class nsZenSiteDataPanel {
   #setSiteBoost() {
     const domain = this.#getCurrentDomain();
     const uri = this.window.gBrowser.currentURI;
+    const isPrivate = lazy.PrivateBrowsingUtils.isWindowPrivate(this.window);
     const canBoostSite = lazy.gZenBoostsManager.canBoostSite(uri);
+    const available =
+      canBoostSite &&
+      !isPrivate &&
+      Services.prefs.getBoolPref("zen.boosts.enabled", false);
+    this.document.getElementById("zen-site-appearance").hidden = !canBoostSite;
+    this.document.getElementById("zen-site-appearance-private").hidden =
+      !isPrivate;
+    const darken = this.document.getElementById("zen-site-data-darken");
+    darken.disabled = !available;
+    this.document.getElementById("zen-site-data-custom-css").disabled =
+      !available;
+    const active =
+      available && lazy.gZenBoostsManager.loadActiveBoostFromStore(domain);
+    darken.setAttribute("checked", !!active?.boostEntry.boostData.smartInvert);
+    darken.setAttribute(
+      "aria-pressed",
+      !!active?.boostEntry.boostData.smartInvert
+    );
 
     const list = this.document.getElementById("zen-site-data-boost-list");
     const section = list.closest(".zen-site-data-section");
     section.hidden = true;
 
-    if (!canBoostSite) {
+    if (!available) {
       return;
     }
 
@@ -391,9 +415,10 @@ export class nsZenSiteDataPanel {
     }
     {
       const button = this.document.getElementById("zen-site-data-header-boost");
-      const canBoost = lazy.gZenBoostsManager.canBoostSite(
-        this.window.gBrowser.currentURI
-      );
+      const canBoost =
+        lazy.gZenBoostsManager.canBoostSite(this.window.gBrowser.currentURI) &&
+        !lazy.PrivateBrowsingUtils.isWindowPrivate(this.window) &&
+        Services.prefs.getBoolPref("zen.boosts.enabled", false);
       if (canBoost) {
         button.removeAttribute("disabled");
       } else {
@@ -724,7 +749,40 @@ export class nsZenSiteDataPanel {
         this.window.gIdentityHandler._openPopup(event);
         break;
       }
+      case "zen-site-data-darken": {
+        if (!this.#canEditSiteAppearance()) {
+          break;
+        }
+        const domain = this.#getCurrentDomain();
+        const boost = lazy.gZenBoostsManager.loadActiveBoostFromStore(domain);
+        lazy.gZenBoostsManager.setSiteDarkening(
+          domain,
+          !boost?.boostEntry.boostData.smartInvert
+        );
+        this.#updateSiteBoost();
+        break;
+      }
+      case "zen-site-data-custom-css": {
+        if (!this.#canEditSiteAppearance()) {
+          break;
+        }
+        const domain = this.#getCurrentDomain();
+        const boost =
+          lazy.gZenBoostsManager.loadActiveBoostFromStore(domain) ||
+          lazy.gZenBoostsManager.createNewBoost(domain);
+        lazy.gZenBoostsManager.openBoostWindow(
+          this.window,
+          boost,
+          this.window.gBrowser.currentURI,
+          { code: true }
+        );
+        this.unifiedPanel.hidePopup();
+        break;
+      }
       case "zen-site-data-header-boost": {
+        if (!this.#canEditSiteAppearance()) {
+          break;
+        }
         const domain = this.#getCurrentDomain();
         const uri = this.window.gBrowser.currentURI;
         const boost = lazy.gZenBoostsManager.createNewBoost(domain);
@@ -822,7 +880,18 @@ export class nsZenSiteDataPanel {
     }
   }
 
+  #canEditSiteAppearance() {
+    return (
+      !lazy.PrivateBrowsingUtils.isWindowPrivate(this.window) &&
+      Services.prefs.getBoolPref("zen.boosts.enabled", false) &&
+      lazy.gZenBoostsManager.canBoostSite(this.window.gBrowser.currentURI)
+    );
+  }
+
   #onBoostClick(event) {
+    if (!this.#canEditSiteAppearance()) {
+      return;
+    }
     const target = event.target.closest("[data-action-id]");
     if (!target) {
       return;

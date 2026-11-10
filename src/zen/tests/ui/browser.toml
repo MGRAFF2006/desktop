@@ -42,3 +42,5 @@ support-files = ["!/toolkit/components/reader/tests/browser/readerModeArticle.ht
 ["browser_no_mods_marketplace.js"]
 
 ["browser_tab_shortcut_hints.js"]
+
+["browser_square_amber.js"]

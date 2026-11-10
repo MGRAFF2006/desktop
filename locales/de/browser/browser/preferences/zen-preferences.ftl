@@ -191,3 +191,7 @@ zen-split-view-shortcut-unsplit = Geteilte Ansicht schließen
 zen-new-empty-split-view-shortcut = Neue leere geteilte Ansicht
 zen-close-all-unpinned-tabs-shortcut = Alle nicht angehefteten Tabs schließen
 zen-duplicate-tab-shortcut = Tab duplizieren
+
+zen-square-amber-appearance =
+    .label = Dunkler, eckiger Browser mit bernsteinfarbenen Akzenten
+zen-square-amber-description = Gilt nur für die Browser-Bedienelemente. Deaktivieren stellt das bisherige Design wieder her. System-Kontrastfarben haben Vorrang. Das Aussehen von Webseiten wird separat im Website-Panel eingestellt.
