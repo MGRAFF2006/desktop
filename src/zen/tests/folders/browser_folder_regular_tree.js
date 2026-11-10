@@ -4,6 +4,7 @@
 
 add_task(async function test_regular_folder_mixed_rows_and_unpack() {
   const before = BrowserTestUtils.addTab(gBrowser, "about:blank");
+  before.id = "test-regular-folder-before";
   const child = BrowserTestUtils.addTab(gBrowser, "about:blank");
   const after = BrowserTestUtils.addTab(gBrowser, "about:blank");
   // New tabs may open next to the selected tab. Establish the fixture's
@@ -146,6 +147,8 @@ add_task(
       Services.scriptSecurityManager.getSystemPrincipal(),
       {
         wantXrays: false,
+        // nukeSandbox requires a cross-compartment wrapper.
+        freshCompartment: true,
       }
     );
     try {
@@ -242,6 +245,10 @@ add_task(
       pinned: false,
       renameFolder: false,
     });
+    const removed = new Set();
+    const onRemoved = event => removed.add(event.target);
+    legacy.addEventListener("TabGroupRemoved", onRemoved);
+    ordinary.addEventListener("TabGroupRemoved", onRemoved);
     try {
       legacy.addTabs([normal]);
       ordinary.addTabs([pin]);
@@ -252,8 +259,18 @@ add_task(
         "native ungroup rescues ordinary children to ordinary roots"
       );
       legacy.addTabs([normal]);
+      const legacyRemoved = BrowserTestUtils.waitForEvent(
+        legacy,
+        "TabGroupRemoved"
+      );
       await legacy.unpackTabs();
+      await legacyRemoved;
+      const ordinaryRemoved = BrowserTestUtils.waitForEvent(
+        ordinary,
+        "TabGroupRemoved"
+      );
       await ordinary.unpackTabs();
+      await ordinaryRemoved;
       Assert.equal(
         normal.parentElement,
         gZenWorkspaces.activeWorkspaceElement.tabsContainer,
@@ -273,8 +290,14 @@ add_task(
         if (tab.isConnected && !tab.closing)
           await BrowserTestUtils.removeTab(tab);
       }
-      if (legacy.isConnected) await removeFolder(legacy);
-      if (ordinary.isConnected) await removeFolder(ordinary);
+      // Unpack already emitted removal; the DOM can remain during its close
+      // animation. Do not wait for a second removal notification in cleanup.
+      for (const folder of [legacy, ordinary]) {
+        folder.removeEventListener("TabGroupRemoved", onRemoved);
+        if (folder.isConnected && !removed.has(folder)) {
+          await removeFolder(folder);
+        }
+      }
     }
   }
 );
