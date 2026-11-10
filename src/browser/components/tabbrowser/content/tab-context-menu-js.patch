@@ -1,8 +1,7 @@
 diff --git a/browser/components/tabbrowser/content/tab-context-menu.js b/browser/components/tabbrowser/content/tab-context-menu.js
-index 4a7cb33a4d9067d469bbe09d4cd8844581642f7a..d7f75471a207cccac6ca3dec49037ac30dd76163 100644
 --- a/browser/components/tabbrowser/content/tab-context-menu.js
 +++ b/browser/components/tabbrowser/content/tab-context-menu.js
-@@ -839,13 +839,15 @@ var TabContextMenu = {
+@@ -866,13 +866,15 @@
      );
      contextUnpinSelectedTabs.hidden =
        !this.contextTab.pinned || !this.multiselected;
@@ -19,3 +18,53 @@ index 4a7cb33a4d9067d469bbe09d4cd8844581642f7a..d7f75471a207cccac6ca3dec49037ac3
        TabContextMenu.GenAI.buildTabMenu(
          document.getElementById("context_askChat"),
          this
+@@ -936,9 +938,9 @@
+     let lastTabToMove = this.contextTabs.at(-1);
+
+     let isLastPinnedTab = false;
+-    if (lastTabToMove.pinned) {
++    if (gBrowser.zenIsInPinnedSection(lastTabToMove)) {
+       let sibling = gBrowser.tabContainer.findNextTab(lastTabToMove);
+-      isLastPinnedTab = !sibling || !sibling.pinned;
++      isLastPinnedTab = !sibling || !gBrowser.zenIsInPinnedSection(sibling);
+     }
+
+     let isSplit = !!this.contextTab.splitview;
+@@ -955,11 +957,11 @@
+       !this.contextTabs[0].group &&
+       (this.contextTabs[0] === visibleOrCollapsedTabs[0] ||
+         this.contextTabs[0] ===
+-          visibleOrCollapsedTabs[gBrowser.pinnedTabCount]);
++          visibleOrCollapsedTabs[gBrowser.zenPinnedBoundary(visibleOrCollapsedTabs)]);
+     let splitAtStart =
+       isSplit &&
+       (firstInSplit === visibleOrCollapsedTabs[0] ||
+-        firstInSplit === visibleOrCollapsedTabs[gBrowser.pinnedTabCount]);
++        firstInSplit === visibleOrCollapsedTabs[gBrowser.zenPinnedBoundary(visibleOrCollapsedTabs)]);
+     contextMoveTabToStart.disabled =
+       (isFirstTab || splitAtStart) && allSelectedTabsAdjacent;
+
+@@ -1295,9 +1297,9 @@
+
+   moveTabsToNewGroup() {
+     let insertBefore = this.contextTab;
+-    if (insertBefore.index < gBrowser.pinnedTabCount) {
+-      let firstUnpinnedTab = gBrowser.tabs[gBrowser.pinnedTabCount];
+-      if (firstUnpinnedTab.splitview) {
++    if (gBrowser.zenIsInPinnedSection(insertBefore)) {
++      let firstUnpinnedTab = gBrowser.tabs[gBrowser.zenPinnedBoundary(gBrowser.tabs)];
++      if (firstUnpinnedTab?.splitview) {
+         insertBefore = firstUnpinnedTab.splitview;
+       } else {
+         insertBefore = firstUnpinnedTab;
+@@ -1323,8 +1325,8 @@
+
+   moveSplitViewToNewGroup() {
+     let insertBefore = this.contextTab;
+-    if (insertBefore.index < gBrowser.pinnedTabCount) {
+-      insertBefore = gBrowser.tabs[gBrowser.pinnedTabCount];
++    if (gBrowser.zenIsInPinnedSection(insertBefore)) {
++      insertBefore = gBrowser.tabs[gBrowser.zenPinnedBoundary(gBrowser.tabs)];
+     } else if (this.contextTab.group) {
+       insertBefore = this.contextTab.group;
+     } else if (this.contextTab.splitview) {
