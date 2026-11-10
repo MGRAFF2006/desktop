@@ -177,3 +177,94 @@ for (const [name, move] of [
     }
   );
 }
+
+for (const withGlance of [false, true]) {
+  for (const essentialMoves of [true, false]) {
+    test(
+      `indexed ${essentialMoves ? "essential" : "workspace pin"} moves stay in their section${withGlance ? " with glance indices" : ""}`,
+      { skip: !source },
+      () => {
+        const Native = nativeClass();
+        const section = name => ({
+          name,
+          children: [],
+          querySelector(selector) {
+            return (
+              this.children.find(
+                item => item.id && selector.includes(item.id)
+              ) || null
+            );
+          },
+          insertBefore(item, before) {
+            if (item.parentElement) {
+              item.parentElement.children.splice(
+                item.parentElement.children.indexOf(item),
+                1
+              );
+            }
+            this.children.splice(
+              before ? this.children.indexOf(before) : this.children.length,
+              0,
+              item
+            );
+            item.parentElement = this;
+          },
+        });
+        const essentials = section("essentials");
+        const pins = section("pins");
+        const makeTab = (name, index, essential = false) => ({
+          name,
+          index,
+          isTab: true,
+          pinned: true,
+          group: null,
+          hasAttribute: attribute => essential && attribute === "zen-essential",
+          after(item) {
+            this.parentElement.insertBefore(
+              item,
+              this.parentElement.children[
+                this.parentElement.children.indexOf(this) + 1
+              ]
+            );
+          },
+        });
+        const firstEssential = makeTab("essential", 0, true);
+        const lastEssential = withGlance
+          ? makeTab("second-essential", 1, true)
+          : firstEssential;
+        const glance = {
+          index: 2,
+          pinned: false,
+          hasAttribute: attribute => attribute === "zen-glance-tab",
+        };
+        const pin = makeTab("pin", withGlance ? 3 : 1);
+        const trailingPin = makeTab("trailing-pin", 4);
+        const separator = { id: "pinned-tabs-container-separator" };
+        essentials.insertBefore(firstEssential, null);
+        if (withGlance) essentials.insertBefore(lastEssential, null);
+        pins.insertBefore(pin, null);
+        if (withGlance) pins.insertBefore(trailingPin, null);
+        pins.insertBefore(separator, null);
+        const expectedEssentials = [...essentials.children];
+        const expectedPins = [...pins.children];
+        const browser = new Native();
+        browser.tabs = withGlance
+          ? [firstEssential, lastEssential, glance, pin, trailingPin]
+          : [firstEssential, pin];
+        browser.tabContainer = { pinnedTabsContainer: pins };
+        browser.documentGlobal = {
+          gZenGlanceManager: {
+            getTabOrGlanceParent: item =>
+              item === glance ? lastEssential : item,
+          },
+          gZenWorkspaces: { getEssentialsSection: () => essentials },
+        };
+        browser.moveTabTo(essentialMoves ? lastEssential : pin, {
+          tabIndex: essentialMoves ? pin.index : firstEssential.index,
+        });
+        assert.deepEqual(essentials.children, expectedEssentials);
+        assert.deepEqual(pins.children, expectedPins);
+      }
+    );
+  }
+}

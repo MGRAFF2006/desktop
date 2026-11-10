@@ -182,3 +182,140 @@ add_task(
     }
   }
 );
+
+add_task(
+  async function test_IndexedMovesKeepEssentialsAndWorkspacePinsSeparate() {
+    const previousSpace = gZenWorkspaces.getActiveWorkspace();
+    const workspace = await gZenWorkspaces.createAndSaveWorkspace(
+      "Essential move boundaries"
+    );
+    const tabs = [];
+    const folders = [];
+    const removed = new Set();
+    const onRemoved = event => removed.add(event.target);
+    const add = () => {
+      const tab = BrowserTestUtils.addTab(gBrowser, "about:blank");
+      tabs.push(tab);
+      return tab;
+    };
+    const addEssential = () => {
+      const tab = add();
+      gBrowser.pinTab(tab);
+      gZenPinnedTabManager.addToEssentials(tab);
+      return tab;
+    };
+    const addFolder = tab => {
+      const folder = gZenFolders.createFolder([tab], {
+        pinned: false,
+        renameFolder: false,
+      });
+      folder.addEventListener("TabGroupRemoved", onRemoved);
+      folders.push(folder);
+      return folder;
+    };
+    const pins = gZenWorkspaces.activeWorkspaceElement.pinnedTabsContainer;
+    const restoreRoot = (tab, section, before = null) => {
+      gBrowser.zenHandleTabMove(tab, () => section.insertBefore(tab, before));
+    };
+    try {
+      for (const essentialMoves of [true, false]) {
+        const essential = addEssential();
+        const pin = add();
+        gBrowser.pinTab(pin);
+        const essentials = gZenWorkspaces.getEssentialsSection(essential);
+        try {
+          gBrowser.moveTabTo(essentialMoves ? essential : pin, {
+            tabIndex: essentialMoves ? pin.index : essential.index,
+          });
+          Assert.equal(
+            essential.parentNode,
+            essentials,
+            "An indexed move cannot move an Essential into workspace pins"
+          );
+          Assert.equal(
+            pin.parentNode,
+            pins,
+            "An indexed move cannot move a workspace pin into Essentials"
+          );
+          Assert.ok(
+            essential.hasAttribute("zen-essential"),
+            "Essential identity is preserved"
+          );
+          Assert.ok(
+            !pin.hasAttribute("zen-essential"),
+            "Workspace pin identity is preserved"
+          );
+        } finally {
+          // Restore valid roots before cleanup when testing an old implementation.
+          restoreRoot(essential, essentials);
+          restoreRoot(
+            pin,
+            pins,
+            pins.querySelector(".pinned-tabs-container-separator")
+          );
+          await BrowserTestUtils.removeTab(pin);
+          await BrowserTestUtils.removeTab(essential);
+        }
+      }
+      const essential = addEssential();
+      const essentials = gZenWorkspaces.getEssentialsSection(essential);
+      const ordinary = add();
+      const ordinaryFolder = addFolder(ordinary);
+      gBrowser.moveTabTo(essential, { tabIndex: ordinary.index });
+      Assert.equal(
+        essential.parentNode,
+        essentials,
+        "An Essential cannot enter an ordinary folder through an indexed move"
+      );
+      restoreRoot(essential, essentials);
+
+      const pinnedChild = add();
+      gBrowser.pinTab(pinnedChild);
+      const mixedFolder = addFolder(pinnedChild);
+      Assert.ok(
+        !mixedFolder.pinned && pinnedChild.pinned,
+        "Fixture contains a pinned child in ordinary rows"
+      );
+      gBrowser.moveTabTo(pinnedChild, { tabIndex: essential.index });
+      Assert.equal(
+        pinnedChild.parentNode,
+        pins,
+        "A mixed-folder pin aimed at Essentials moves to workspace pins"
+      );
+      Assert.ok(
+        !pinnedChild.hasAttribute("zen-essential"),
+        "Extraction does not convert the child into an Essential"
+      );
+
+      gBrowser.moveTabTo(pinnedChild, { tabIndex: ordinary.index });
+      Assert.equal(
+        pinnedChild.group,
+        ordinaryFolder,
+        "An explicit child target still permits a pinned tab in an ordinary folder"
+      );
+      Assert.ok(
+        pinnedChild.pinned && !ordinaryFolder.pinned,
+        "An explicit child move preserves both pin flag and folder placement"
+      );
+      Assert.equal(
+        gBrowser.tabs[pinnedChild.index],
+        pinnedChild,
+        "The mixed child retains its native index"
+      );
+    } finally {
+      for (const folder of folders) {
+        if (folder.isConnected && !removed.has(folder)) {
+          await removeFolder(folder);
+        }
+        folder.removeEventListener("TabGroupRemoved", onRemoved);
+      }
+      for (const tab of tabs) {
+        if (tab.isConnected && !tab.closing) {
+          await BrowserTestUtils.removeTab(tab);
+        }
+      }
+      await gZenWorkspaces.changeWorkspace(previousSpace);
+      await gZenWorkspaces.removeWorkspace(workspace.uuid);
+    }
+  }
+);

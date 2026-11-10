@@ -1096,7 +1096,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
    }
 
    #updateTabsAfterInsert() {
-@@ -8100,11 +8395,25 @@
+@@ -8100,11 +8395,39 @@
        tabIndex = this.#elementIndexToTabIndex(elementIndex);
      }
 
@@ -1117,17 +1117,31 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 +    // by section, and the bound is a position in tabs, not pinnedTabCount.
 +    const targetTab = this.tabs[tabIndex];
 +    const targetFolder = !forceUngrouped && Tabbrowser.isTab(element) && targetTab?.group?.isZenFolder ? targetTab.group : null;
-+    if (!targetFolder) {
++    if (!targetFolder || element.hasAttribute("zen-essential")) {
 +      const boundary = this.zenPinnedBoundary(this.tabs);
-+      if (element.pinned) {
-+        tabIndex = Math.min(Math.max(0, tabIndex), Math.max(0, boundary - 1));
++      // Essentials and workspace pins are separate roots. Count their prefix
++      // in this array's index space, including intervening glance rows.
++      let essentialBoundary = 0;
++      let lastEssentialIndex = -1;
++      for (const tab of this.tabs) {
++        if (tab.hasAttribute("zen-essential")) {
++          lastEssentialIndex = essentialBoundary;
++        } else if (!tab.hasAttribute("zen-glance-tab")) {
++          break;
++        }
++        essentialBoundary++;
++      }
++      if (element.hasAttribute("zen-essential")) {
++        tabIndex = Math.min(Math.max(0, tabIndex), Math.max(0, lastEssentialIndex));
++      } else if (element.pinned) {
++        tabIndex = Math.min(Math.max(essentialBoundary, tabIndex), Math.max(essentialBoundary, boundary - 1));
 +      } else {
 +        tabIndex = Math.max(tabIndex, boundary);
 +      }
      }
 
      // Return early if the tab is already in the right spot.
-@@ -8116,18 +8425,6 @@
+@@ -8116,18 +8439,6 @@
        return;
      }
 
@@ -1146,7 +1160,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      // When moving backwards, placing an element at tabIndex works trivially.
      // When moving forwards to a higher tabIndex, we need to increase the
      // index to account for the fact that the act of moving (multiple) tabs
-@@ -8148,8 +8445,10 @@
+@@ -8148,8 +8459,10 @@
      this.#handleTabMove(
        element,
        () => {
@@ -1159,7 +1173,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
            neighbor = neighbor.group;
          }
          if (neighbor?.splitview) {
-@@ -8160,11 +8459,38 @@
+@@ -8160,11 +8473,39 @@
              return;
            }
          }
@@ -1170,7 +1184,8 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 +          return;
 +        }
 +
-+        if (forceUngrouped) {
++        if (forceUngrouped || element.hasAttribute("zen-essential") ||
++            (!targetFolder && element.pinned)) {
 +          const section = element.hasAttribute("zen-essential")
 +            ? this.documentGlobal.gZenWorkspaces.getEssentialsSection(element)
 +            : element.pinned ? this.tabContainer.pinnedTabsContainer
@@ -1199,7 +1214,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
          }
        },
        { metricsContext }
-@@ -8236,24 +8562,28 @@
+@@ -8236,24 +8577,28 @@
    ) {
      if (Tabbrowser.isTabGroupLabel(targetElement)) {
        targetElement = targetElement.group;
@@ -1237,7 +1252,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
        // If the caller asks to move an unpinned element next to a pinned
        // tab, move the unpinned element to be the first unpinned element
        // in the tab strip. Potential scenarios:
-@@ -8265,11 +8595,31 @@
+@@ -8265,11 +8610,31 @@
        //    move the tab group right before the first unpinned tab.
        // 4. Moving a tab group and the first unpinned tab is grouped:
        //    move the tab group right before the first unpinned tab's tab group.
@@ -1273,7 +1288,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      }
 
      // We want to include the splitview wrapper if it's the targetElement, but
-@@ -8279,6 +8629,7 @@
+@@ -8279,6 +8644,7 @@
      }
 
      let getContainer = () =>
@@ -1281,7 +1296,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
        element.pinned
          ? this.tabContainer.pinnedTabsContainer
          : this.tabContainer;
-@@ -8287,11 +8638,16 @@
+@@ -8287,11 +8653,16 @@
        element,
        () => {
          if (moveBefore) {
@@ -1299,7 +1314,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
          }
        },
        { metricsContext }
-@@ -8367,11 +8723,18 @@
+@@ -8367,11 +8738,18 @@
     *   The context for the operation for telemetry purposes.
     */
    moveTabToExistingGroup(aTab, aGroup, { metricsContext } = {}) {
@@ -1320,7 +1335,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      }
      if (aTab.group && aTab.group.id === aGroup.id) {
        return;
-@@ -8450,6 +8813,7 @@
+@@ -8450,6 +8828,7 @@
 
      let state = {
        tabIndex: tab.index,
@@ -1328,7 +1343,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      };
      if (tab.visible) {
        state.elementIndex = tab.elementIndex;
-@@ -8487,7 +8851,7 @@
+@@ -8487,7 +8866,7 @@
      let changedSplitView =
        previousTabState.splitViewId != currentTabState.splitViewId;
 
@@ -1337,7 +1352,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
        tab.dispatchEvent(
          new this.documentGlobal.CustomEvent("TabMove", {
            bubbles: true,
-@@ -8554,6 +8918,10 @@
+@@ -8554,6 +8933,10 @@
 
      moveActionCallback();
 
@@ -1348,7 +1363,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      // Clear tabs cache after moving nodes because the order of tabs may have
      // changed.
      this.tabContainer._invalidateCachedTabs();
-@@ -8613,7 +8981,25 @@
+@@ -8613,7 +8996,25 @@
     * @returns {object}
     *    The new tab in the current window, null if the tab couldn't be adopted.
     */
@@ -1375,7 +1390,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      // Swap the dropped tab with a new one we create and then close
      // it in the other window (making it seem to have moved between
      // windows). We also ensure that the tab we create to swap into has
-@@ -8645,10 +9031,10 @@
+@@ -8645,10 +9046,10 @@
      // We want to explicitly set this param rather than carry it over to
      // avoid situations like an unpinned tab being dragged between pinned
      // tabs but not getting pinned as expected.
@@ -1390,7 +1405,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
      if (aTab.hasAttribute("usercontextid")) {
        // new tab must have the same usercontextid as the old one
-@@ -8656,6 +9042,8 @@
+@@ -8656,6 +9057,8 @@
      }
      params.skipLoad = true;
      let newTab = this.addWebTab("about:blank", params);
@@ -1399,7 +1414,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
      aTab.container.tabDragAndDrop.finishAnimateTabMove();
 
-@@ -8664,6 +9052,10 @@
+@@ -8664,6 +9067,10 @@
        this.removeTab(newTab);
        return null;
      }
@@ -1410,7 +1425,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
      if (selectTab) {
        this.selectedTab = newTab;
-@@ -9477,7 +9869,7 @@
+@@ -9477,7 +9884,7 @@
        // preventDefault(). It will still raise the window if appropriate.
        return;
      }
@@ -1419,7 +1434,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      this.documentGlobal.focus();
      aEvent.preventDefault();
    }
-@@ -9494,7 +9886,6 @@
+@@ -9494,7 +9901,6 @@
 
    on_TabGroupCollapse(aEvent) {
      aEvent.target.tabs.forEach(tab => {
@@ -1427,7 +1442,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
      });
    }
 
-@@ -9843,7 +10234,9 @@
+@@ -9843,7 +10249,9 @@
 
        let filter = Tabbrowser.#tabFilters.get(tab);
        if (filter) {
@@ -1437,7 +1452,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
 
          let listener = Tabbrowser.#tabListeners.get(tab);
          if (listener) {
-@@ -10648,6 +11041,7 @@
+@@ -10648,6 +11056,7 @@
            aWebProgress.isTopLevel
          ) {
            this._tab.setAttribute("busy", "true");
@@ -1445,7 +1460,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
            this.#tabbrowser._tabAttrModified(this._tab, ["busy"]);
            if (this._tab.selected) {
              TabProgressListener.#tabsNotSelectedSinceLoad.delete(this._tab);
-@@ -10731,6 +11125,7 @@
+@@ -10731,6 +11140,7 @@
        // known defaults. Note we use the original URL since about:newtab
        // redirects to a prerendered page.
        const shouldRemoveFavicon =
@@ -1453,7 +1468,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
          !this._browser.mIconURL &&
          !ignoreBlank &&
          !(originalLocation.spec in FAVICON_DEFAULTS);
-@@ -10908,13 +11303,6 @@
+@@ -10908,13 +11318,6 @@
            this._browser.originalURI = aRequest.originalURI;
          }
 
