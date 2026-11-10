@@ -454,7 +454,7 @@ body,
 
 /* A reversible browser-chrome preset. Content documents never load this sheet.
  * Keep geometry in forced colors, but leave all contrast colors to the system. */
-@media (-moz-bool-pref: "zen.theme.square-amber") {
+@media -moz-pref("zen.theme.square-amber") {
   :root,
   #navigator-toolbox,
   #tabbrowser-tabs .tabbrowser-tab {

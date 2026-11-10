@@ -28,7 +28,9 @@ add_task(async function test_square_amber_is_reversible_and_chrome_only() {
           const selectedBackground =
             gBrowser.selectedTab.querySelector(".tab-background");
           await TestUtils.waitForCondition(
-            () => getComputedStyle(selectedBackground).borderTopLeftRadius === "0px",
+            () =>
+              getComputedStyle(selectedBackground).borderTopLeftRadius ===
+              "0px",
             "Wait for preference-driven chrome restyling"
           );
           Assert.equal(
