@@ -409,7 +409,7 @@ class nsZenSpacesSyncApplier {
         }
         if (
           !lazy.syncNormalTabs &&
-          win.gBrowser.tabs.some(
+          win.gZenWorkspaces.allStoredTabs.some(
             tab =>
               !tab.pinned &&
               !tab.hasAttribute("zen-empty-tab") &&

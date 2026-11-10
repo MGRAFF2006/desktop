@@ -508,12 +508,12 @@ class nsZenSpacesSyncModel {
         push(tab.zenSyncId);
         continue;
       }
-      if (ctx.splitIds.has(groupId) || ctx.splitParents.has(groupId)) {
+      if (ctx.allSplitIds.has(groupId) || ctx.splitParents.has(groupId)) {
         const parent = ctx.splitParents.get(groupId) ?? null;
         const isDirect = scope.folder ? parent === scope.folder : !parent;
         if (isDirect) {
           if (
-            ctx.splitIds.has(groupId) &&
+            ctx.allSplitIds.has(groupId) &&
             (!scope.space || (ctx.splitWs.get(groupId) ?? null) === scope.space)
           ) {
             push(groupId);
@@ -634,10 +634,11 @@ class nsZenSpacesSyncModel {
         g.tabs.every(id => syncableTabIds.has(id))
     );
     const splitIds = new Set(splits.map(g => g.groupId));
+    const allSplitIds = new Set(allSplits.map(g => g.groupId));
     const splitWs = new Map();
-    for (const tab of tabs) {
+    for (const tab of allTabs) {
       const groupId = tab.groupId || null;
-      if (groupId && splitIds.has(groupId) && !splitWs.has(groupId)) {
+      if (groupId && allSplitIds.has(groupId) && !splitWs.has(groupId)) {
         splitWs.set(groupId, tab.zenWorkspace || null);
       }
     }
@@ -658,6 +659,7 @@ class nsZenSpacesSyncModel {
       syncableTabIds,
       splits,
       splitIds,
+      allSplitIds,
       splitParents,
       splitWs,
       folderOf,
