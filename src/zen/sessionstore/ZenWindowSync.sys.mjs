@@ -1227,7 +1227,7 @@ class nsZenWindowSync {
    */
   #delegateGenericSyncEvent(aEvent, flags = 0) {
     const item = aEvent.target;
-    if (lazy.gSyncOnlyPinnedTabs && !item.pinned) {
+    if (lazy.gSyncOnlyPinnedTabs && !item.pinned && !item.isZenFolder) {
       return;
     }
     this.#syncItemForAllWindows(item, flags);
@@ -1678,6 +1678,7 @@ class nsZenWindowSync {
       const newGroup = isFolder
         ? win.gZenFolders.createFolder([], {
             label: tabGroup.label,
+            pinned: tabGroup.pinned,
             workspaceId: tabGroup.getAttribute("zen-workspace-id"),
             isLiveFolder: tabGroup.isLiveFolder,
           })
@@ -1700,6 +1701,15 @@ class nsZenWindowSync {
       const targetGroup = this.getItemFromWindow(win, tabGroup.id);
       if (targetGroup) {
         if (targetGroup.isZenFolder) {
+          if (lazy.gSyncOnlyPinnedTabs) {
+            for (const tab of [...targetGroup.tabs]) {
+              if (!tab.pinned && !tab.hasAttribute("zen-empty-tab")) {
+                while (tab.group?.isZenFolder) {
+                  win.gBrowser.ungroupTab(tab);
+                }
+              }
+            }
+          }
           targetGroup.delete();
         } else {
           win.gBrowser.removeTabGroup(targetGroup, { isUserTriggered: true });

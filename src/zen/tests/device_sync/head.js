@@ -85,7 +85,16 @@ function tabRecord(
   };
 }
 
-function folderRecord(id, { name = "Synced folder", workspaceUuid } = {}) {
+function folderRecord(
+  id,
+  {
+    name = "Synced folder",
+    workspaceUuid,
+    pinned,
+    parentFolderId = null,
+    children = [],
+  } = {}
+) {
   return {
     id,
     deleted: false,
@@ -96,9 +105,10 @@ function folderRecord(id, { name = "Synced folder", workspaceUuid } = {}) {
         name,
         icon: null,
         workspaceUuid: workspaceUuid ?? gZenWorkspaces.activeWorkspace,
-        parentFolderId: null,
+        parentFolderId,
+        pinned,
         live: null,
-        children: [],
+        children,
       },
     },
   };

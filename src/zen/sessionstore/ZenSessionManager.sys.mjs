@@ -879,7 +879,8 @@ export class nsZenSessionManager {
       aWindowData.groups = sidebar.groups;
     }
 
-    // Folders are always pinned, so we dont need to check for the pinned state here.
+    // Folder metadata is shared even when ordinary tab contents are local.
+    // This also retains the parent chain of pinned tabs in ordinary folders.
     aWindowData.folders = sidebar.folders;
     aWindowData.spaces = sidebar.spaces;
     this.log("Restored sidebar data into window", {

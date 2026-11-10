@@ -239,7 +239,7 @@ index da2abe1dedd062a8167575623d6c6212de645f23..20637ac4be303cd70e2afa1eb5a931e2
        );
 -      tabState.pinned = false;
 +      tabState.pinned =
-+        newTab.group?.isZenFolder === true &&
++        newTab.group?.isZenFolder === true && newTab.group.pinned &&
 +        Services.prefs.getBoolPref("zen.folders.owned-tabs-in-folder");
 +      tabState.zenEssential = false;
 +      tabState.zenSyncId = null;

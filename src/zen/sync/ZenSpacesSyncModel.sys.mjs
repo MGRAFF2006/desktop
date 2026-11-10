@@ -536,6 +536,38 @@ class nsZenSpacesSyncModel {
         }
       }
     }
+    // Empty folders have no descendant tab to contribute their position. Use
+    // the persisted immediate sibling edge for every direct child folder;
+    // this also keeps empty and nonempty folders interleaved with tab rows.
+    const unresolved = ctx.folders.filter(folder =>
+      scope.folder
+        ? folder.parentId === scope.folder
+        : !folder.parentId && folder.workspaceId === scope.space
+    );
+    for (let pass = 0; pass < ctx.folders.length && unresolved.length; pass++) {
+      for (let i = unresolved.length - 1; i >= 0; i--) {
+        const folder = unresolved[i];
+        const previous = folder.prevSiblingInfo;
+        const predecessor = ctx.folderById
+          .get(scope.folder)
+          ?.emptyTabIds?.includes(previous?.id)
+          ? null
+          : previous?.id;
+        if (predecessor && !seq.includes(predecessor)) {
+          continue;
+        }
+        const oldIndex = seq.indexOf(folder.id);
+        if (oldIndex >= 0) {
+          seq.splice(oldIndex, 1);
+        }
+        const index = predecessor ? seq.indexOf(predecessor) + 1 : 0;
+        seq.splice(index, 0, folder.id);
+        unresolved.splice(i, 1);
+      }
+    }
+    for (const folder of unresolved) {
+      push(folder.id);
+    }
     return seq;
   }
 
@@ -827,6 +859,7 @@ class nsZenSpacesSyncModel {
           icon: folder.userIcon || null,
           workspaceUuid: folder.workspaceId || null,
           parentFolderId: folder.parentId || null,
+          pinned: folder.pinned !== false,
           live,
           children: this.#childSequence(ctx, { folder: fid }),
         },
