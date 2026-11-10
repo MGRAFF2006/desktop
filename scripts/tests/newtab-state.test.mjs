@@ -61,3 +61,66 @@ test("stored state is bounded, tolerates corruption and uses only local backgrou
     12,
   );
 });
+
+test("a stale document cannot overwrite newer settings from another page", async () => {
+  const { readFileSync } = await import("node:fs");
+  const vm = await import("node:vm");
+  let stored = "{}";
+  const source = readFileSync(
+    new URL(
+      "../../src/zen/common/actors/ZenNewTabParent.sys.mjs",
+      import.meta.url,
+    ),
+    "utf8",
+  );
+  const Parent = vm.runInNewContext(
+    source.replace(/^import .*;\n/gm, "").replace("export class", "class") +
+      "\nZenNewTabParent;",
+    {
+      cleanState,
+      JSWindowActorParent: class {},
+      Services: {
+        prefs: {
+          getStringPref: () => stored,
+          setStringPref: (_name, value) => {
+            stored = value;
+          },
+        },
+      },
+      console,
+    },
+  );
+  const actor = () => {
+    const value = new Parent();
+    value.manager = { documentPrincipal: { URI: { spec: "about:newtab" } } };
+    value.browsingContext = { originAttributes: { privateBrowsingId: 0 } };
+    return value;
+  };
+  const request = (parent, action, value) =>
+    parent.receiveMessage({
+      name: "ZenNewTab:Request",
+      data: { action, value },
+    });
+  const first = actor(),
+    second = actor();
+  const firstState = (await request(first, "load")).state;
+  const secondState = (await request(second, "load")).state;
+  firstState.links.push({ title: "Saved first", url: "https://example.com/" });
+  assert.equal((await request(first, "save", firstState)).ok, true);
+  secondState.clock = "24";
+  const stale = await request(second, "save", secondState);
+  assert.equal(stale.ok, false, "stale snapshots are rejected");
+  assert.equal(stale.conflict, true);
+  assert.equal(JSON.parse(stored).links[0].title, "Saved first");
+  const refreshed = (await request(second, "load")).state;
+  refreshed.clock = "24";
+  assert.equal((await request(second, "save", refreshed)).ok, true);
+  assert.equal(JSON.parse(stored).links[0].title, "Saved first");
+  assert.equal(JSON.parse(stored).clock, "24");
+  firstState.links = [];
+  assert.equal(
+    (await request(first, "save", firstState)).ok,
+    false,
+    "stale link edits cannot replace newer settings either",
+  );
+});

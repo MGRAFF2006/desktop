@@ -359,3 +359,101 @@ add_task(async function keyboard_editing_and_narrow_layout() {
     await SpecialPowers.popPrefEnv();
   }
 });
+
+add_task(async function stale_documents_keep_newer_saved_links() {
+  await SpecialPowers.pushPrefEnv({ set: [[STATE_PREF, "{}"]] });
+  const tabs = [];
+  const edit = (browser, kind) =>
+    SpecialPowers.spawn(browser, [kind], async (action) => {
+      const doc = content.document;
+      const response = new Promise((resolve) => {
+        doc.addEventListener(
+          "ZenNewTabResponse",
+          (event) => resolve(event.detail),
+          { once: true },
+        );
+      });
+      if (action === "link") {
+        doc.getElementById("add-link").click();
+        doc.getElementById("link-title").value = "Saved in first page";
+        doc.getElementById("link-url").value = "https://example.com/";
+        doc.getElementById("link-form").requestSubmit();
+      } else {
+        const clock = doc.getElementById("clock-format");
+        clock.value = "24";
+        clock.dispatchEvent(new content.Event("change", { bubbles: true }));
+      }
+      return response;
+    });
+  try {
+    for (const url of ["about:newtab", "about:home"]) {
+      const tab = await BrowserTestUtils.openNewForegroundTab(gBrowser, url);
+      tabs.push(tab);
+      await pageRequest(tab.linkedBrowser, "load");
+    }
+    const [first, second] = tabs.map((tab) => tab.linkedBrowser);
+    Assert.ok((await edit(first, "link")).ok, "First page saves a link");
+    second.style.minWidth = "320px";
+    second.style.maxWidth = "320px";
+    const stale = await edit(second, "clock");
+    Assert.ok(
+      !stale.ok,
+      "The stale page does not report a successful overwrite",
+    );
+    Assert.equal(
+      JSON.parse(Services.prefs.getStringPref(STATE_PREF)).links[0]?.title,
+      "Saved in first page",
+      "Changing the stale clock cannot delete newer quicklinks",
+    );
+    const loaded = BrowserTestUtils.browserLoaded(second);
+    await SpecialPowers.spawn(second, [], async () => {
+      await ContentTaskUtils.waitForCondition(() => content.innerWidth === 320);
+      const doc = content.document;
+      await doc.l10n.ready;
+      Assert.equal(
+        doc.documentElement.scrollWidth,
+        doc.documentElement.clientWidth,
+        "Conflict recovery fits a narrow viewport",
+      );
+      const reload = doc.getElementById("reload-page");
+      Assert.ok(
+        reload?.textContent,
+        "The recovery action has a localized name",
+      );
+      Assert.equal(
+        doc.getElementById("status").getAttribute("data-l10n-id"),
+        "zen-newtab-save-conflict",
+        "The conflict has an actionable explanation",
+      );
+      Assert.ok(reload && !reload.hidden, "A reload action is available");
+      if (reload) {
+        reload.click();
+      } else {
+        // Keep the old implementation's diagnostic run from waiting forever.
+        content.location.reload();
+      }
+    });
+    await loaded;
+    await pageRequest(second, "load");
+    await SpecialPowers.spawn(second, [], () => {
+      Assert.equal(
+        content.document.querySelector("#links a")?.textContent,
+        "Saved in first page",
+        "Reload shows the newer saved link",
+      );
+    });
+    Assert.ok((await edit(second, "clock")).ok, "The refreshed edit succeeds");
+    const final = JSON.parse(Services.prefs.getStringPref(STATE_PREF));
+    Assert.equal(final.clock, "24", "The requested clock format is saved");
+    Assert.equal(
+      final.links[0]?.title,
+      "Saved in first page",
+      "The link is retained",
+    );
+  } finally {
+    for (const tab of tabs) {
+      await BrowserTestUtils.removeTab(tab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});

@@ -10,6 +10,18 @@ const PREF = "zen.newtab.state";
 
 export class ZenNewTabParent extends JSWindowActorParent {
   #privateState = cleanState(null);
+  #loadedState = null;
+
+  #readState(isPrivate) {
+    if (isPrivate) {
+      return this.#privateState;
+    }
+    try {
+      return cleanState(JSON.parse(Services.prefs.getStringPref(PREF, "{}")));
+    } catch {
+      return cleanState(null);
+    }
+  }
 
   async receiveMessage({ name, data }) {
     if (
@@ -24,24 +36,25 @@ export class ZenNewTabParent extends JSWindowActorParent {
     try {
       switch (data.action) {
         case "load": {
-          let state = this.#privateState;
-          if (!isPrivate) {
-            const stored = Services.prefs.getStringPref(PREF, "{}");
-            try {
-              state = cleanState(JSON.parse(stored));
-            } catch {
-              state = cleanState(null);
-            }
-          }
+          const state = this.#readState(isPrivate);
+          this.#loadedState = JSON.stringify(state);
           return { ok: true, state, isPrivate };
         }
         case "save": {
+          // Another page may have saved newer links since this document loaded.
+          // Keep the comparison and write synchronous so stale edits cannot win.
+          if (
+            this.#loadedState !== JSON.stringify(this.#readState(isPrivate))
+          ) {
+            return { ok: false, conflict: true };
+          }
           const state = cleanState(data.value);
           if (isPrivate) {
             this.#privateState = state;
           } else {
             Services.prefs.setStringPref(PREF, JSON.stringify(state));
           }
+          this.#loadedState = JSON.stringify(state);
           return { ok: true, state };
         }
         case "search": {

@@ -35,3 +35,6 @@ zen-newtab-clock-format = Clock format
 zen-newtab-clock-system = System default
 zen-newtab-clock-12 = 12-hour
 zen-newtab-clock-24 = 24-hour
+
+zen-newtab-save-conflict = Another start page saved newer settings. Reload this page before editing again.
+zen-newtab-reload = Reload page

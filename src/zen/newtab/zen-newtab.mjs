@@ -68,8 +68,16 @@ window.addEventListener("pagehide", () => clearInterval(timer), { once: true });
 
 async function save() {
   const result = await request("save", state);
-  setStatus(result.ok ? null : "zen-newtab-save-error");
+  $("reload-page").hidden = !result.conflict;
+  if (result.ok) {
+    setStatus(null);
+  } else if (result.conflict) {
+    setStatus("zen-newtab-save-conflict");
+  } else {
+    setStatus("zen-newtab-save-error");
+  }
 }
+$("reload-page").addEventListener("click", () => window.location.reload());
 function renderLinks() {
   $("links").replaceChildren();
   state.links.forEach((link, index) => {
