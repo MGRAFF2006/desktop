@@ -37,7 +37,11 @@ function node(name, parent = null) {
     pinned: false,
     group: null,
     hasAttribute: () => false,
+    querySelector() {
+      return null;
+    },
     insertBefore(item) {
+      assert.notEqual(item, this, "Cannot insert a tree into itself");
       item.parentElement = this;
     },
     after(item) {
@@ -74,10 +78,22 @@ for (const label of [false, true]) {
           group: target,
           index: pinned ? 1 : 0,
         });
-        folder.tabs = [child];
+        // Every real Zen folder contains at least an anchor plus its real
+        // tabs. A singleton fixture misses the forward subtree offset.
+        const anchor = node("anchor");
+        Object.assign(anchor, {
+          isTab: true,
+          group: folder,
+          index: pinned ? 0 : 1,
+        });
+        child.index = pinned ? 1 : 2;
+        targetChild.index = pinned ? 2 : 0;
+        folder.tabs = [anchor, child];
         target.tabs = [targetChild];
         const browser = new Native();
-        browser.tabs = pinned ? [child, targetChild] : [targetChild, child];
+        browser.tabs = pinned
+          ? [anchor, child, targetChild]
+          : [targetChild, anchor, child];
         browser.documentGlobal = {
           gZenGlanceManager: { getTabOrGlanceParent: item => item },
           gZenWorkspaces: { activeWorkspaceStrip: normal },
@@ -88,6 +104,7 @@ for (const label of [false, true]) {
         assert.equal(folder.parentElement, pinned ? pins : normal);
         assert.equal(folder.pinned, pinned);
         assert.equal(child.group, folder);
+        assert.equal(anchor.group, folder);
       }
     }
   );
