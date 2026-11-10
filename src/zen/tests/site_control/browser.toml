@@ -18,3 +18,5 @@ support-files = [
 ["browser_site_data_permission_toggle.js"]
 
 ["browser_site_data_security_scheme.js"]
+
+["browser_site_appearance.js"]

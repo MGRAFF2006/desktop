@@ -529,6 +529,7 @@ export class nsZenBoostEditor {
       this.doc.getElementById("zen-boost-editor-root").style.display = "none";
       this.doc.getElementById("zen-boost-code-editor-root").style.display =
         "initial";
+      this.editorWindow._editor.focus();
     });
   }
 
@@ -1723,6 +1724,9 @@ ${cssSelector} {
     // The code editor needs time to initialize
     await this.initCodeEditor();
     this.updateAllVisuals();
+    if (this.editorWindow.openCode) {
+      this.onCodeButtonPressed();
+    }
   }
 
   updateAllVisuals() {

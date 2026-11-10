@@ -101,3 +101,13 @@ zen-boost-load =
 zen-panel-ui-boosts-exported-message = Boost exportiert!
 zen-site-data-boosts = Boosts
 zen-boost-rename-boost-prompt = Boost umbenennen?
+
+zen-site-appearance = Website-Darstellung
+zen-site-appearance-darken =
+    .label = Diese helle Website abdunkeln
+    .accesskey = D
+zen-site-appearance-darken-description = Smart Invert für helle Seiten. Fotos und Videos behalten ihre Farben. Für diesen Host gespeichert; auf bereits dunklen Websites ausschalten.
+zen-site-appearance-custom-css =
+    .label = Website-CSS bearbeiten…
+    .accesskey = C
+zen-site-appearance-private = Die Website-Darstellung ist in privaten Fenstern nicht verfügbar. Private Besuche und Änderungen werden nicht gespeichert.
