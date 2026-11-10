@@ -137,8 +137,7 @@ add_task(
     const sandbox = Cu.Sandbox(
       Services.scriptSecurityManager.getSystemPrincipal(),
       {
-        sandboxPrototype: window,
-        wantXrays: false,
+          wantXrays: false,
       }
     );
     try {
