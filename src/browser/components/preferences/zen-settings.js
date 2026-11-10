@@ -152,6 +152,7 @@ var gZenWorkspacesSettings = {
 };
 
 Preferences.addAll([
+  { id: "zen.theme.square-amber", type: "bool", default: false },
   { id: "zen.tabs.show-shortcut-hints", type: "bool", default: false },
   { id: "browser.tabs.fadeOutUnloadedTabs", type: "bool", default: true },
   {

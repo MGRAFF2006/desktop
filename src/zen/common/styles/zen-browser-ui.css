@@ -451,3 +451,88 @@ body,
     contain: none;
   }
 }
+
+/* A reversible browser-chrome preset. Content documents never load this sheet.
+ * Keep geometry in forced colors, but leave all contrast colors to the system. */
+@media -moz-pref("zen.theme.square-amber") {
+  :root,
+  #navigator-toolbox,
+  #tabbrowser-tabs .tabbrowser-tab {
+    --zen-border-radius: 0px !important;
+    --button-border-radius: 0px !important;
+    --tab-border-radius: 0px !important;
+    --border-radius-medium: 0px !important;
+  }
+
+  :is(
+    #navigator-toolbox,
+    #zen-sidebar-top-buttons,
+    #TabsToolbar,
+    #tabbrowser-tabs,
+    #zen-appcontent-wrapper,
+    #urlbar,
+    panel,
+    menupopup
+  ),
+  :is(
+      #navigator-toolbox,
+      #TabsToolbar,
+      #tabbrowser-tabs,
+      #urlbar,
+      panel,
+      menupopup
+    )
+    :is(
+      toolbarbutton,
+      button,
+      .tab-background,
+      .tab-stack,
+      .tab-content,
+      .toolbarbutton-badge-stack,
+      .toolbarbutton-icon,
+      .urlbar-background,
+      .panel-arrowcontent
+    ) {
+    border-radius: 0 !important;
+  }
+
+  /* Vertical tab and Glance rules use local radii and high-specificity
+   * !important declarations, independent of the root geometry tokens. */
+  :root #tabbrowser-tabs .tabbrowser-tab :is(.tab-background, .tab-stack, .tab-content) {
+    border-radius: 0 !important;
+  }
+
+  @media not (forced-colors: active) {
+    :root {
+      color-scheme: dark !important;
+      --zen-primary-color: #efa34f !important;
+      --zen-branding-bg: #121416 !important;
+      --zen-main-browser-background: #121416 !important;
+      --zen-main-browser-background-toolbar: #1e2124 !important;
+      --zen-themed-toolbar-bg-transparent: #1e2124 !important;
+      --zen-toolbar-element-bg: #1e2124 !important;
+      --toolbox-textcolor: #eee6d8 !important;
+      --toolbar-color: #eee6d8 !important;
+      --toolbar-color-scheme: dark !important;
+      --toolbar-field-color: #eee6d8 !important;
+      --toolbar-field-background-color: #121416 !important;
+      --arrowpanel-background: #1e2124 !important;
+      --arrowpanel-color: #eee6d8 !important;
+    }
+
+    #zen-browser-background {
+      background: #121416 !important;
+    }
+
+    #urlbar-background {
+      background-color: #121416 !important;
+      border-radius: 0 !important;
+    }
+
+    #urlbar[focused] #urlbar-background,
+    .tabbrowser-tab[selected] .tab-background {
+      outline: 1px solid #efa34f !important;
+      outline-offset: -1px;
+    }
+  }
+}
