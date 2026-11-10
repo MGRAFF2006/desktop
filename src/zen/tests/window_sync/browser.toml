@@ -22,3 +22,5 @@ skip-if = ["os == 'mac'"] # macOS never marks closing windows for restore
 ["browser_sync_tab_open.js"]
 
 ["browser_window_tab_tracker_cleanup.js"]
+
+["browser_restore_window_state.js"]

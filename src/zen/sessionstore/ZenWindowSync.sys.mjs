@@ -383,8 +383,46 @@ class nsZenWindowSync {
     }
   }
 
+  #replacingWindows = new WeakSet();
+  #retiredGroups = new WeakSet();
+
+  /**
+   * Rebuilding one window is not an edit to its synced peers. Capture events
+   * before they enter the async sync queue. Empty old groups can notify later
+   * through MutationObserver, so remember their objects, never their reused IDs.
+   * The callback must be synchronous; genuine later edits still synchronize.
+   */
+  withWindowStateReplacement(aWindow, aCallback) {
+    if (this.#replacingWindows.has(aWindow)) {
+      return aCallback();
+    }
+    const oldGroups = [...aWindow.gZenWorkspaces.allTabGroups];
+    for (const group of oldGroups) {
+      this.#retiredGroups.add(group);
+    }
+    this.#replacingWindows.add(aWindow);
+    try {
+      return aCallback();
+    } finally {
+      this.#replacingWindows.delete(aWindow);
+      // If reconstruction threw or a close was refused, surviving groups are
+      // still live objects whose subsequent genuine edits must synchronize.
+      for (const group of oldGroups) {
+        if (group.isConnected) {
+          this.#retiredGroups.delete(group);
+        }
+      }
+    }
+  }
+
   handleEvent(aEvent) {
     const window = aEvent.currentTarget.documentGlobal ?? aEvent.currentTarget;
+    if (
+      this.#replacingWindows.has(window) ||
+      this.#retiredGroups.has(aEvent.target)
+    ) {
+      return;
+    }
     // The library builds copies of tabs and folders that fire these same
     // events while being built, and this listens in the capture phase, ahead
     // of anything the library could do to hold them back. Nothing a copy
