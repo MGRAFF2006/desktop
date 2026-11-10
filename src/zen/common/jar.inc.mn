@@ -38,3 +38,7 @@
         content/browser/zen-styles/zen-panels/print.css                         (../../zen/common/styles/zen-panels/print.css)
         content/browser/zen-styles/zen-panels/dialog.css                        (../../zen/common/styles/zen-panels/dialog.css)
         content/browser/zen-styles/zen-legacy-windows.css                      (../../zen/common/styles/zen-legacy-windows.css)
+
+        content/browser/zen-newtab.html                                        (../../zen/newtab/zen-newtab.html)
+        content/browser/zen-newtab.css                                         (../../zen/newtab/zen-newtab.css)
+        content/browser/zen-newtab.mjs                                         (../../zen/newtab/zen-newtab.mjs)
