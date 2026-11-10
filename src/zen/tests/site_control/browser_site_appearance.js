@@ -73,13 +73,22 @@ add_task(
         Assert.deepEqual(
           after.media,
           before.media,
-          "Native darkening preserves canvas media colors"
+          "Native darkening preserves raster image colors"
         );
         is(
           darken.getAttribute("aria-pressed"),
           "true",
           "Toggle reports enabled state"
         );
+        await SpecialPowers.pushPrefEnv({
+          set: [["browser.display.document_color_use", 2]],
+        });
+        try {
+          await waitForInversion(browser, false);
+        } finally {
+          await SpecialPowers.popPrefEnv();
+        }
+        await waitForInversion(browser, true);
         const css = boost.boostEntry.boostData.customCSS;
         await closeSiteDataPanel();
         const loaded = BrowserTestUtils.browserLoaded(browser);

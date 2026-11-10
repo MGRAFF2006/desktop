@@ -14,6 +14,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 export class ZenBoostsChild extends JSWindowActorChild {
   #currentSheet = null;
+  #forcedColors = null;
+  #onForcedColorsChange = () => this.#applyBoostForPageIfAvailable();
   #currentState = ZenBoostsChild.STATES.NONE;
   #preventableEventsAdded = false;
   #zappedElementsTempShown = [];
@@ -79,6 +81,8 @@ export class ZenBoostsChild extends JSWindowActorChild {
   }
 
   didDestroy() {
+    this.#forcedColors?.removeEventListener("change", this.#onForcedColorsChange);
+    this.#forcedColors = null;
     if (this.#currentState === ZenBoostsChild.STATES.ZAP) {
       this.disableZapMode();
     }
@@ -389,6 +393,10 @@ export class ZenBoostsChild extends JSWindowActorChild {
       return;
     }
 
+    if (!this.#forcedColors) {
+      this.#forcedColors = this.document.defaultView.matchMedia("(forced-colors: active)");
+      this.#forcedColors.addEventListener("change", this.#onForcedColorsChange);
+    }
     const boost = await this.getWebsiteBoost();
 
     if (unloadStyles) {
@@ -408,9 +416,7 @@ export class ZenBoostsChild extends JSWindowActorChild {
       this.#setSyncedField(
         browsingContext,
         "isZenBoostsInverted",
-        !!boostData.smartInvert &&
-          !this.document.defaultView.matchMedia("(forced-colors: active)")
-            .matches
+        !!boostData.smartInvert && !this.#forcedColors.matches
       );
       if (boostData.enableColorBoost) {
         let primaryColor;
