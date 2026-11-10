@@ -14,6 +14,8 @@ ChromeUtils.defineESModuleGetters(lazy, {
 
 export class ZenBoostsChild extends JSWindowActorChild {
   #currentSheet = null;
+  #destroyed = false;
+  #applyGeneration = 0;
   #forcedColors = null;
   #onForcedColorsChange = () => this.#applyBoostForPageIfAvailable();
   #currentState = ZenBoostsChild.STATES.NONE;
@@ -81,10 +83,14 @@ export class ZenBoostsChild extends JSWindowActorChild {
   }
 
   didDestroy() {
-    this.#forcedColors?.removeEventListener(
-      "change",
-      this.#onForcedColorsChange
-    );
+    this.#destroyed = true;
+    this.#currentSheet = null;
+    if (this.#forcedColors && !Cu.isDeadWrapper(this.#forcedColors)) {
+      this.#forcedColors.removeEventListener(
+        "change",
+        this.#onForcedColorsChange
+      );
+    }
     this.#forcedColors = null;
     if (this.#currentState === ZenBoostsChild.STATES.ZAP) {
       this.disableZapMode();
@@ -253,7 +259,7 @@ export class ZenBoostsChild extends JSWindowActorChild {
     switch (message.name) {
       case "ZenBoost:BoostDataUpdated": {
         const { unloadStyles = false } = message.data || {};
-        this.#applyBoostForPageIfAvailable(unloadStyles);
+        await this.#applyBoostForPageIfAvailable(unloadStyles);
         if (this.#currentState === ZenBoostsChild.STATES.ZAP) {
           this.#overlay?.updateZapList();
         }
@@ -357,13 +363,28 @@ export class ZenBoostsChild extends JSWindowActorChild {
    *
    * @returns {object} Boost data for the current website
    */
-  getWebsiteBoost() {
+  async getWebsiteBoost() {
+    if (this.#destroyed) {
+      return null;
+    }
     const domain = this.#hostWithoutPort;
     if (!domain) {
       return null;
     }
 
-    return this.sendQuery("ZenBoost:GetBoostForDomain", domain);
+    try {
+      return await this.sendQuery("ZenBoost:GetBoostForDomain", domain);
+    } catch (error) {
+      // Navigating or closing a document can destroy the actor mid-query.
+      // Other failures still need to reach the caller.
+      if (
+        error?.name === "AbortError" &&
+        (this.#destroyed || this.manager?.isClosed)
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 
   /**
@@ -392,7 +413,12 @@ export class ZenBoostsChild extends JSWindowActorChild {
 
     // Prevent applying boosts to iframes or non-top-level browsing contexts.
     // It makes the tab crash if we try to load stylesheets into an iframe's
-    if (!browsingContext || browsingContext.parent !== null) {
+    if (
+      this.#destroyed ||
+      !this.manager?.isCurrentGlobal ||
+      !browsingContext ||
+      browsingContext.parent !== null
+    ) {
       return;
     }
 
@@ -402,9 +428,17 @@ export class ZenBoostsChild extends JSWindowActorChild {
       );
       this.#forcedColors.addEventListener("change", this.#onForcedColorsChange);
     }
+    const generation = ++this.#applyGeneration;
     const boost = await this.getWebsiteBoost();
+    if (
+      this.#destroyed ||
+      !this.manager?.isCurrentGlobal ||
+      generation !== this.#applyGeneration
+    ) {
+      return;
+    }
 
-    if (unloadStyles) {
+    if (unloadStyles || !boost?.styleSheet) {
       this.#unloadCurrentStyleSheet();
     }
 
@@ -481,14 +515,13 @@ export class ZenBoostsChild extends JSWindowActorChild {
    * @param {object} styleSheet The stylesheet
    */
   #loadStyleSheet(styleSheet) {
-    const browsingContext = this.browsingContext;
     styleSheet.uri = Services.io.newURI(styleSheet.uri);
 
     if (this.#currentSheet?.uuid !== styleSheet.uuid) {
       if (this.#currentSheet) {
         this.#unloadCurrentStyleSheet();
       }
-      browsingContext.window.windowGlobalChild.browsingContext.window.windowUtils.loadSheet(
+      this.document.defaultView.windowUtils.loadSheet(
         styleSheet.uri,
         BOOST_SHEET_TYPE
       );
@@ -502,7 +535,7 @@ export class ZenBoostsChild extends JSWindowActorChild {
   #unloadCurrentStyleSheet() {
     const browsingContext = this.browsingContext;
     if (this.#currentSheet && browsingContext) {
-      browsingContext.window.windowGlobalChild.browsingContext.window.windowUtils.removeSheet(
+      this.document.defaultView.windowUtils.removeSheet(
         this.#currentSheet.uri,
         BOOST_SHEET_TYPE
       );

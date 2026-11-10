@@ -148,6 +148,7 @@ add_task(async function site_panel_opens_existing_css_directly() {
           editor.boostEditor?.codeEditorReady &&
           editor.document.documentElement.getAttribute("editor") === "code"
       );
+      await editor.boostEditor.onUpdateZapButtonVisual();
       is(
         editor.document.documentElement.getAttribute("editor"),
         "code",
@@ -183,6 +184,18 @@ add_task(async function site_panel_opens_existing_css_directly() {
       }
       await closeSiteDataPanel();
       gZenBoostsManager.deleteBoost(boost);
+      await browser.browsingContext.currentWindowGlobal
+        .getActor("ZenBoosts")
+        .sendQuery("ZenBoost:BoostDataUpdated", { unloadStyles: true });
+      is(
+        await SpecialPowers.spawn(
+          browser,
+          [],
+          () => content.getComputedStyle(content.document.body).outlineStyle
+        ),
+        "none",
+        "Deleting the Boost removes its CSS before closing the page"
+      );
     }
   });
 });
@@ -234,6 +247,11 @@ add_task(async function private_pages_do_not_apply_or_edit_saved_styles() {
           "zen-has-implicit-hover",
           "true"
         );
+        await new Promise(resolve =>
+          privateWindow.requestAnimationFrame(() =>
+            privateWindow.requestAnimationFrame(resolve)
+          )
+        );
         EventUtils.synthesizeMouseAtCenter(
           privateWindow.document.getElementById("zen-site-data-icon-button"),
           {},
@@ -255,7 +273,25 @@ add_task(async function private_pages_do_not_apply_or_edit_saved_styles() {
             .hidden,
           "The private limitation is explained"
         );
+        is(
+          privateWindow.document
+            .getElementById("zen-site-data-darken")
+            .getAttribute("aria-pressed"),
+          "false",
+          "Preparing a private panel completes with darkening turned off"
+        );
+        is(
+          await SpecialPowers.spawn(
+            browser,
+            [],
+            () => content.getComputedStyle(content.document.body).outlineStyle
+          ),
+          "none",
+          "Saved CSS does not style the private page"
+        );
+        const hidden = BrowserTestUtils.waitForPopupEvent(panel, "hidden");
         panel.hidePopup();
+        await hidden;
       }
     );
   } finally {
