@@ -1225,6 +1225,11 @@
         item =>
           !items.some(parent => parent !== item && parent.contains?.(item))
       );
+      // Native startTabDrag reverses movingTabs for some animation directions.
+      // Tree insertion follows document order, not that transient drag order.
+      items.sort((a, b) =>
+        a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING ? -1 : 1
+      );
       // Validate the whole move before changing any node. A rejected drop must
       // not fall through to Firefox's flat tab movement and partially move it.
       if (

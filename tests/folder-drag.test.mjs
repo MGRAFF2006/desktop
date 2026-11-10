@@ -39,6 +39,17 @@ class Item {
     this.children.splice(at, 0, item);
     item.parentElement = this;
   }
+  compareDocumentPosition(other) {
+    let root = this;
+    while (root.parentElement) root = root.parentElement;
+    const nodes = [];
+    function visit(node) {
+      nodes.push(node);
+      node.children.forEach(visit);
+    }
+    visit(root);
+    return nodes.indexOf(other) > nodes.indexOf(this) ? 4 : 2;
+  }
   hasAttribute(name) {
     return this.attributes.has(name);
   }
@@ -63,6 +74,7 @@ function setup() {
   const context = vm.createContext({
     window,
     TAB_DROP_TYPE: "tab",
+    Node: { DOCUMENT_POSITION_FOLLOWING: 4 },
     gBrowser: {
       isTab: item => !!item && !item.isZenFolder && !item.label,
       isTabGroupLabel: item => !!item?.label,
@@ -202,4 +214,16 @@ test("Ctrl-copy falls through to the native duplication path without moving orig
   workspace.tabsContainer.insertBefore(tab, null);
   assert.equal(drop(tab, label(folder), false, [tab], "copy"), false);
   assert.equal(tab.parentElement, workspace.tabsContainer);
+});
+
+test("native reversed drag animation lists retain document sibling order on drop", () => {
+  const { workspace, drop } = setup();
+  const a = new Item("a"),
+    b = new Item("b"),
+    folder = new Item("folder", true);
+  workspace.tabsContainer.insertBefore(a, null);
+  workspace.tabsContainer.insertBefore(b, null);
+  workspace.tabsContainer.insertBefore(folder, null);
+  assert.equal(drop(a, label(folder), false, [b, a]), true);
+  assert.deepEqual(folder.groupContainer.children, [a, b]);
 });
