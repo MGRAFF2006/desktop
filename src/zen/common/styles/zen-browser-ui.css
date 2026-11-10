@@ -455,7 +455,9 @@ body,
 /* A reversible browser-chrome preset. Content documents never load this sheet.
  * Keep geometry in forced colors, but leave all contrast colors to the system. */
 @media -moz-pref("zen.theme.square-amber") {
-  :root {
+  :root,
+  #navigator-toolbox,
+  #tabbrowser-tabs .tabbrowser-tab {
     --zen-border-radius: 0px !important;
     --button-border-radius: 0px !important;
     --tab-border-radius: 0px !important;
@@ -491,6 +493,12 @@ body,
       .urlbar-background,
       .panel-arrowcontent
     ) {
+    border-radius: 0 !important;
+  }
+
+  /* Vertical tab and Glance rules use local radii and high-specificity
+   * !important declarations, independent of the root geometry tokens. */
+  :root #tabbrowser-tabs .tabbrowser-tab :is(.tab-background, .tab-stack, .tab-content) {
     border-radius: 0 !important;
   }
 
