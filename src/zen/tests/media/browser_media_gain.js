@@ -53,6 +53,10 @@ add_task(async function test_global_media_gain_controls() {
     slider.dispatchEvent(new Event("input", { bubbles: true }));
     is(Services.prefs.getIntPref(pref), 170, "slider saves all-tabs gain");
     ok(!reset.disabled, "reset becomes available after boosting");
+    ok(
+      getComputedStyle(reset).listStyleImage.includes("reload.svg"),
+      "Reset has a visible icon in the icon-only toolbar"
+    );
     Services.prefs.setIntPref(pref, 130);
     is(slider.value, "130", "an external preference change updates the card");
     clickMediaButton("zen-media-gain-reset");

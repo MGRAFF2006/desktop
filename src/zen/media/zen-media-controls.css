@@ -452,6 +452,12 @@
     text-align: end;
   }
 
+  .zen-media-gain-reset {
+    list-style-image: url("chrome://global/skin/icons/reload.svg");
+    -moz-context-properties: fill;
+    fill: currentColor;
+  }
+
   .zen-media-gain-help {
     margin: 0;
   }
