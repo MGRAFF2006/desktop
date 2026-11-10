@@ -159,13 +159,19 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
       },
     };
   }
-  const tab = { id: "child", pinned: false, hasAttribute: () => false };
+  const tab = { id: "child", pinned: true, hasAttribute: () => false };
   const inner = source("inner", [tab]);
   const root = source("root", [inner]);
   context.gBrowser = {
     adoptTab: child => {
       inner.allItems = inner.allItems.filter(item => item !== child);
-      return { ...child };
+      return { ...child, pinned: false };
+    },
+    pinTab(tab) {
+      tab.pinned = true;
+    },
+    unpinTab(tab) {
+      tab.pinned = false;
     },
     isTabGroup: () => false,
     isTab: item => !item.isZenFolder && !targets.has(item.id),
@@ -173,7 +179,7 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   };
   const adopted = folders.adoptFolder(root);
   assert.equal(adopted.children[0], targets.get("inner"));
-  assert.equal(adopted.children[0].children[0].pinned, false);
+  assert.equal(adopted.children[0].children[0].pinned, true);
   assert.equal(adopted.collapsed, true);
   assert.equal(root.deleted, true);
   assert.equal(inner.deleted, true);

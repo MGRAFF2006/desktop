@@ -871,6 +871,11 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       if (item.hasAttribute("zen-empty-tab")) {
         continue;
       }
+      const pinStates = item.isZenFolder
+        ? []
+        : (gBrowser.isTabGroup(item) ? item.tabs : [item]).map(
+            tab => tab.pinned
+          );
       let adopted;
       if (item.isZenFolder) {
         adopted = this.adoptFolder(item, options);
@@ -884,6 +889,22 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       }
       if (!adopted) {
         throw new Error(`Could not adopt folder child ${item.id}`);
+      }
+      // Native adoption derives pinning from destination indices, which are
+      // unrelated to a folder's internal order. Restore each child's flag
+      // before regrouping it; grouping itself must never change pin state.
+      const adoptedTabs = gBrowser.isTab(adopted)
+        ? [adopted]
+        : adopted.tabs || [];
+      for (let index = 0; index < pinStates.length; index++) {
+        const tab = adoptedTabs[index];
+        if (tab && tab.pinned !== pinStates[index]) {
+          if (pinStates[index]) {
+            gBrowser.pinTab(tab);
+          } else {
+            gBrowser.unpinTab(tab);
+          }
+        }
       }
       if (gBrowser.isTab(adopted)) {
         folder.addTabs([adopted]);
