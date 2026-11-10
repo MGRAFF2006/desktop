@@ -35,6 +35,7 @@ add_task(
         try {
           const tab = source.gBrowser.addTrustedTab("https://example.com/", {
             skipAnimation: true,
+            createLazyBrowser: true,
           });
           const folder = source.gZenFolders.createFolder([tab], {
             label: "Restore parent",
@@ -44,7 +45,7 @@ add_task(
           folderIds.push(folder.id);
           const nestedTab = source.gBrowser.addTrustedTab(
             "https://example.org/",
-            { skipAnimation: true }
+            { skipAnimation: true, createLazyBrowser: true }
           );
           const nested = source.gZenFolders.createFolder([nestedTab], {
             label: "Restore child",
@@ -69,6 +70,16 @@ add_task(
               source.gBrowser.TabStateFlusher.flush(t.linkedBrowser)
             )
           );
+          for (const [sourceTab, url] of [
+            [tab, "https://example.com/"],
+            [nestedTab, "https://example.org/"],
+          ]) {
+            Assert.deepEqual(
+              tabSnapshot({ tabs: [sourceTab] })[0].entries,
+              [url],
+              "Fixture history contains its requested URL before replacement"
+            );
+          }
           peer = await BrowserTestUtils.openNewBrowserWindow();
           await peer.gZenStartup.promiseInitialized;
           const peerReady = BrowserTestUtils.waitForEvent(
