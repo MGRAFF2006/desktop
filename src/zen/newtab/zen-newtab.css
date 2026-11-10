@@ -1,0 +1,168 @@
+/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this
+ * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+  background: var(--zen-colors-tertiary);
+  color: light-dark(#202124, #f2f2f2);
+  --start-glow: color-mix(in srgb, var(--zen-primary-color) 18%, transparent);
+}
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(
+    ellipse at 20% 100%,
+    var(--start-glow),
+    transparent 70%
+  );
+  display: grid;
+  place-items: center;
+}
+:root[data-background="daybreak"] {
+  --start-glow: light-dark(#d2ba9b80, #9d785e45);
+  background-color: light-dark(#f1ece7, #25211f);
+}
+:root[data-background="nightfall"] {
+  --start-glow: light-dark(#a7b9d980, #536c9f60);
+  background-color: light-dark(#e8edf4, #171e2b);
+}
+main {
+  box-sizing: border-box;
+  width: min(100%, 640px);
+  padding: clamp(24px, 6vw, 64px) 24px;
+  text-align: center;
+}
+#clock {
+  display: block;
+  font-size: clamp(64px, 16vw, 112px);
+  line-height: 1.1;
+  font-weight: 200;
+  letter-spacing: -0.055em;
+  font-variant-numeric: tabular-nums;
+}
+#date {
+  margin: 12px 0 40px;
+}
+input,
+button,
+select {
+  font: inherit;
+  max-width: 100%;
+}
+button {
+  cursor: pointer;
+}
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 4px;
+}
+#search-form {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+#search {
+  flex: 1;
+  min-width: 0;
+}
+input,
+select {
+  color: inherit;
+  background: var(--zen-colors-input-bg);
+  border: 1px solid var(--zen-colors-border);
+  border-radius: var(--zen-border-radius);
+  padding: 12px;
+}
+#links {
+  list-style: none;
+  padding: 0;
+  margin: 32px 0 16px;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px 24px;
+}
+#links li {
+  display: flex;
+  align-items: center;
+  max-width: 100%;
+}
+#links a {
+  color: inherit;
+  overflow-wrap: anywhere;
+  padding: 8px 0;
+}
+#links button {
+  padding: 4px 8px;
+  margin-inline-start: 6px;
+  min-width: 0;
+}
+#add-link,
+summary {
+  font-size: 0.9rem;
+}
+#options {
+  margin-top: 36px;
+}
+summary {
+  cursor: pointer;
+  width: fit-content;
+  margin-inline: auto;
+  padding: 8px;
+}
+.options-body {
+  text-align: start;
+  display: grid;
+  gap: 10px;
+  padding-top: 20px;
+}
+.options-body label:not(:first-child) {
+  margin-top: 12px;
+}
+#status {
+  min-height: 1.5em;
+  font-size: 0.9rem;
+}
+dialog {
+  color: inherit;
+  background: var(--zen-colors-tertiary);
+  border: 1px solid var(--zen-colors-border);
+  border-radius: var(--zen-border-radius);
+  width: min(400px, calc(100vw - 64px));
+  padding: 24px;
+}
+dialog::backdrop {
+  background: #0006;
+}
+#link-form {
+  display: grid;
+  gap: 12px;
+}
+#link-form h2 {
+  margin-top: 0;
+}
+.dialog-buttons {
+  display: flex;
+  justify-content: end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+@media (max-width: 380px) {
+  #search-form {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+@media (forced-colors: active) {
+  :root,
+  body {
+    background: Canvas;
+    color: CanvasText;
+  }
+  input,
+  select,
+  dialog {
+    border-color: CanvasText;
+  }
+}

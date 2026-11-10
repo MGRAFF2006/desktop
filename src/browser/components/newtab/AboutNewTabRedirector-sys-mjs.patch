@@ -1,0 +1,40 @@
+diff --git a/browser/components/newtab/AboutNewTabRedirector.sys.mjs b/browser/components/newtab/AboutNewTabRedirector.sys.mjs
+--- a/browser/components/newtab/AboutNewTabRedirector.sys.mjs
++++ b/browser/components/newtab/AboutNewTabRedirector.sys.mjs
+@@ -425,21 +425,7 @@
+    * the newtab page has no effect on the result of this function.
+    */
+   get defaultURL() {
+-    if (this.remoteRendererEnabled) {
+-      return "resource://newtab/data/content/remote-renderer-host.html";
+-    }
+-
+-    // Generate the desired activity stream resource depending on state, e.g.,
+-    // "resource://newtab/prerendered/activity-stream.html"
+-    // "resource://newtab/prerendered/activity-stream-debug.html"
+-    // "resource://newtab/prerendered/activity-stream-noscripts.html"
+-    return [
+-      "resource://newtab/prerendered/",
+-      "activity-stream",
+-      this.activityStreamDebug && this.selfLoadingEnabled ? "-debug" : "",
+-      this.selfLoadingEnabled ? "" : "-noscripts",
+-      ".html",
+-    ].join("");
++    return "chrome://browser/content/zen-newtab.html";
+   }
+
+   newChannel() {
+@@ -596,13 +582,6 @@
+     let pageURI;
+
+     if (uri.spec.startsWith("about:home")) {
+-      let cacheChannel = AboutHomeStartupCacheChild.maybeGetCachedPageChannel(
+-        uri,
+-        loadInfo
+-      );
+-      if (cacheChannel) {
+-        return cacheChannel;
+-      }
+       pageURI = Services.io.newURI(this.defaultURL);
+     } else {
+       // The only other possibility is about:newtab.
