@@ -763,6 +763,7 @@ class nsZenShareManager extends nsZenDOMOperatedFeature {
   #importFolder(item, workspaceId, parentFolder = null) {
     const folder = gZenFolders.createFolder([], {
       label: item.name,
+      pinned: true,
       collapsed: true,
       workspaceId,
       insertAfter: parentFolder

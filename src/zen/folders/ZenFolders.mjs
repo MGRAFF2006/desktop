@@ -325,7 +325,9 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     if (groupIsCollapsiblePins(group)) {
       return;
     }
-    group.pinned = tab.pinned;
+    if (!group.isZenFolder) {
+      group.pinned = tab.pinned;
+    }
     const isActiveFolder = group?.activeGroups?.length > 0;
 
     if (isActiveFolder) {
@@ -431,11 +433,12 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     if (!group?.isZenFolder || tab.pinned) {
       return;
     }
-    // Edge case: In occations where we add a tab with an ownerTab
-    // inside a folder, the tab gets added into the folder in an
-    // unpinned state. We need to pin it and re-add it into the folder.
+    // Related tabs inherit legacy pinned folders' behavior. Ordinary folders
+    // retain their new tabs without changing their pin state.
     if (Services.prefs.getBoolPref("zen.folders.owned-tabs-in-folder")) {
-      gBrowser.pinTab(tab);
+      if (group.pinned) {
+        gBrowser.pinTab(tab);
+      }
       group.addTabs([tab]);
     }
   }
@@ -624,7 +627,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
 
     // Prevent create folder inside Live Folder
     const thereIsOneLiveFolderTab = tabs?.some(tab =>
-      tab.hasAttribute("zen-live-folder-item-id")
+      tab?.hasAttribute("zen-live-folder-item-id")
     );
     if (thereIsOneLiveFolderTab) {
       return;
@@ -632,6 +635,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
 
     const canInsertBefore =
       !isFromToolbar &&
+      !!triggerTab &&
       !triggerTab.hasAttribute("zen-essential") &&
       !triggerTab?.group?.hasAttribute("split-view-group") &&
       this.canDropElement({ isZenFolder: true }, triggerTab);
@@ -657,13 +661,16 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
         beforeChangeCallback: async newWorkspace => {
           await new Promise(resolve => {
             requestAnimationFrame(async () => {
-              const workspacePinnedContainer = gZenWorkspaces.workspaceElement(
+              const workspace = gZenWorkspaces.workspaceElement(
                 newWorkspace.uuid
-              ).pinnedTabsContainer;
+              );
+              const workspaceContainer = folder.pinned
+                ? workspace.pinnedTabsContainer
+                : workspace.tabsContainer;
               const tabs = folder.allItems.filter(
                 tab => !tab.hasAttribute("zen-empty-tab")
               );
-              workspacePinnedContainer.append(...tabs);
+              workspaceContainer.append(...tabs);
               await folder.delete();
               gBrowser.tabContainer._invalidateCachedTabs();
               if (selectedTab) {
@@ -704,10 +711,19 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     const workspaceElement = gZenWorkspaces.workspaceElement(workspaceId);
 
     if (!hasDndSwitch) {
-      const pinnedTabsContainer = workspaceElement.pinnedTabsContainer;
-      pinnedTabsContainer.insertBefore(folder, pinnedTabsContainer.lastChild);
+      const container = folder.pinned
+        ? workspaceElement.pinnedTabsContainer
+        : workspaceElement.tabsContainer;
+      const end = container.querySelector(
+        ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+      );
+      container.insertBefore(folder, end);
     }
 
+    folder.setAttribute("zen-workspace-id", workspaceId);
+    for (const child of folder.querySelectorAll("zen-folder")) {
+      child.setAttribute("zen-workspace-id", workspaceId);
+    }
     const { lastSelectedWorkspaceTabs } = gZenWorkspaces;
 
     for (const tab of folder.tabs) {
@@ -735,39 +751,62 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
   }
 
   canDropElement(element, targetElement) {
-    const isZenFolder = element?.isZenFolder;
-    const level = targetElement?.group?.level + 1;
-    return !(isZenFolder && level >= this.#ZEN_MAX_SUBFOLDERS);
+    if (!element?.isZenFolder) {
+      return true;
+    }
+    const parent = targetElement?.group;
+    if (parent === element || element.contains?.(parent)) {
+      return false;
+    }
+    const depth = parent ? parent.level + 1 : 0;
+    const descendants = element.querySelectorAll?.("zen-folder") ?? [];
+    const height = Math.max(
+      0,
+      ...Array.from(descendants, child => child.level - element.level)
+    );
+    return depth + height < this.#ZEN_MAX_SUBFOLDERS;
   }
 
   createFolder(tabs = [], options = {}) {
-    const filteredTabs = tabs.map(tab => {
-      gBrowser.pinTab(tab);
-      if (tab?.group?.hasAttribute("split-view-group")) {
-        tab = tab.group;
-      }
-      return tab;
-    });
-
-    const workspacePinned = gZenWorkspaces.workspaceElement(
-      options.workspaceId
-    )?.pinnedTabsContainer;
-    const pinnedContainer =
-      options.workspaceId && workspacePinned
-        ? workspacePinned
-        : gZenWorkspaces.pinnedTabsContainer;
+    const filteredTabs = [
+      ...new Set(
+        tabs
+          .filter(Boolean)
+          .map(tab =>
+            tab.group?.hasAttribute("split-view-group") ? tab.group : tab
+          )
+      ),
+    ];
+    const anchor = options.insertAfter || options.insertBefore;
+    const pinned =
+      options.pinned ??
+      (options.isLiveFolder ? true : undefined) ??
+      anchor?.group?.pinned ??
+      (filteredTabs.length > 0 && filteredTabs.every(tab => tab.pinned));
+    options = { ...options, pinned };
+    const workspace = gZenWorkspaces.workspaceElement(
+      options.workspaceId || gZenWorkspaces.activeWorkspace
+    );
+    const container = pinned
+      ? workspace.pinnedTabsContainer
+      : workspace.tabsContainer;
     const insertBefore =
       options.insertBefore ||
-      pinnedContainer.querySelector(".pinned-tabs-container-separator");
+      container.querySelector(
+        pinned
+          ? ".pinned-tabs-container-separator"
+          : "#tabbrowser-arrowscrollbox-periphery"
+      );
     const emptyTab = gBrowser.addTab("about:blank", {
       skipAnimation: true,
-      pinned: true,
+      pinned,
       triggeringPrincipal: Services.scriptSecurityManager.getSystemPrincipal(),
       _forZenEmptyTab: true,
       createLazyBrowser: true,
     });
-
-    gBrowser.pinTab(emptyTab);
+    if (pinned) {
+      gBrowser.pinTab(emptyTab);
+    }
     tabs = [emptyTab, ...filteredTabs];
 
     const folder = this._createFolderNode(options);
@@ -778,8 +817,10 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
 
     if (options.insertAfter) {
       options.insertAfter.after(folder);
-    } else {
+    } else if (insertBefore) {
       insertBefore.before(folder);
+    } else {
+      container.appendChild(folder);
     }
     gZenVerticalTabsManager.animateItemOpen(folder);
 
@@ -807,6 +848,62 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     return folder;
   }
 
+  adoptFolder(source, options = {}) {
+    if (source.ownerDocument === document) {
+      return source;
+    }
+    // Keep the source anchor until every real child has moved successfully.
+    // A refused browser swap leaves its remaining source subtree intact.
+    const existing = document.getElementById(source.id);
+    const folder = existing?.isZenFolder
+      ? existing
+      : this.createFolder([], {
+          id: source.id,
+          label: source.label,
+          pinned: source.pinned,
+          collapsed: false,
+          saveOnWindowClose: source.saveOnWindowClose,
+          workspaceId: gZenWorkspaces.activeWorkspace,
+        });
+    const icon = source.iconURL;
+    const selected = source.documentGlobal.gBrowser.selectedTab;
+    for (const item of [...source.allItems]) {
+      if (item.hasAttribute("zen-empty-tab")) {
+        continue;
+      }
+      let adopted;
+      if (item.isZenFolder) {
+        adopted = this.adoptFolder(item, options);
+      } else if (gBrowser.isTabGroup(item)) {
+        adopted = gBrowser.adoptTabGroup(item, options);
+      } else {
+        adopted = gBrowser.adoptTab(item, {
+          selectTab: !!options.selectTab && item === selected,
+          spaceId: gZenWorkspaces.activeWorkspace,
+        });
+      }
+      if (!adopted) {
+        throw new Error(`Could not adopt folder child ${item.id}`);
+      }
+      if (gBrowser.isTab(adopted)) {
+        folder.addTabs([adopted]);
+      } else {
+        folder.appendChild(adopted);
+      }
+    }
+    if (icon) {
+      this.setFolderUserIcon(folder, icon);
+    }
+    folder.collapsed = source.collapsed;
+    // Only placeholders remain in the source; never delete unadopted tabs.
+    source.delete();
+    if (options.elementIndex !== undefined || options.tabIndex !== undefined) {
+      gBrowser.moveTabTo(folder, options);
+    }
+    gBrowser.tabContainer._invalidateCachedTabs();
+    return folder;
+  }
+
   _createFolderNode(options = {}) {
     const folder = document.createXULElement("zen-folder", {
       is: "zen-folder",
@@ -819,6 +916,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       // See: Bug 1960104 - Improve tab group ID generation in addTabGroup
       id = `${Date.now()}-${Math.round(Math.random() * 100)}`;
     }
+    folder.pinned = options.pinned !== false;
     folder.id = id;
     folder.label = options.label || "New Folder";
     folder.saveOnWindowClose = !!options.saveOnWindowClose;
@@ -1342,7 +1440,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
         tabFolderWorkingData.set(folderData.id, workingData);
 
         const oldGroup = document.getElementById(folderData.id);
-        folderData.emptyTabIds.forEach(id => {
+        (folderData.emptyTabIds ?? []).forEach(id => {
           oldGroup
             ?.querySelector(`tab[id="${id}"]`)
             ?.setAttribute("zen-empty-tab", true);
@@ -1393,14 +1491,21 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     for (const { stateData, node } of tabFolderWorkingData.values()) {
       if (node && stateData.parentId) {
         const parentWorkingData = tabFolderWorkingData.get(stateData.parentId);
-        if (parentWorkingData && parentWorkingData.node) {
+        if (
+          parentWorkingData?.node &&
+          parentWorkingData.node !== node &&
+          !node.contains(parentWorkingData.node)
+        ) {
           switch (stateData?.prevSiblingInfo?.type) {
             case "tab":
             case "group": {
               const item = document.getElementById(
                 stateData.prevSiblingInfo.id
               );
-              if (item) {
+              if (
+                item?.parentElement === parentWorkingData.node.groupContainer &&
+                item !== node
+              ) {
                 item.after(node);
                 break;
               }
@@ -1427,6 +1532,27 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
             }
           }
         }
+      }
+    }
+
+    // Old sessions had only pinned folders. Explicit false is the additive
+    // upgrade marker; no existing tab or folder is repinned during restore.
+    for (const { stateData, node } of tabFolderWorkingData.values()) {
+      if (!node || stateData.parentId || stateData.splitViewGroup) {
+        continue;
+      }
+      const workspace = gZenWorkspaces.workspaceElement(stateData.workspaceId);
+      if (!workspace) {
+        continue;
+      }
+      const container = node.pinned
+        ? workspace.pinnedTabsContainer
+        : workspace.tabsContainer;
+      const previous = document.getElementById(stateData.prevSiblingInfo?.id);
+      if (previous?.parentElement === container && previous !== node) {
+        previous.after(node);
+      } else {
+        container.prepend(node);
       }
     }
 

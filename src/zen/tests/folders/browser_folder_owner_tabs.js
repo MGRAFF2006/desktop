@@ -32,7 +32,7 @@ add_task(async function test_Owned_Tab_Inside_Folder() {
   await new Promise(resolve => setTimeout(resolve, 100));
 
   for (const t of folder.tabs) {
-    ok(t.pinned, "All tabs in the folder should be pinned");
+    ok(!t.pinned, "Owned tabs in an ordinary folder stay unpinned");
   }
 
   gBrowser.selectedTab = selectedTab;
