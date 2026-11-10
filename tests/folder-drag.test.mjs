@@ -87,7 +87,13 @@ function setup() {
   handler._setIsDraggingTabGroup = () => {};
   handler._expandGroupOnDrop = () => {};
   Object.defineProperty(handler, "_splitDropReady", { value: false });
-  function drop(source, target, before = false, items = [source]) {
+  function drop(
+    source,
+    target,
+    before = false,
+    items = [source],
+    effect = "move"
+  ) {
     for (const item of items) item.documentGlobal = window;
     source._dragData = {
       dropElement: target,
@@ -95,7 +101,7 @@ function setup() {
       movingTabs: items,
     };
     return handler._handleFolderDrop({
-      dataTransfer: { mozGetDataAt: () => source },
+      dataTransfer: { dropEffect: effect, mozGetDataAt: () => source },
     });
   }
   return { workspace, drop, window };
@@ -186,4 +192,14 @@ test("pinned child leaving an ordinary folder rejoins pins without changing its 
   assert(drop(child, last));
   assert.equal(child.parentElement, w.pinnedTabsContainer);
   assert.equal(child.pinned, true);
+});
+
+test("Ctrl-copy falls through to the native duplication path without moving originals", () => {
+  const { workspace, drop } = setup();
+  const folder = new Item("folder", true);
+  const tab = new Item("tab");
+  workspace.tabsContainer.insertBefore(folder, null);
+  workspace.tabsContainer.insertBefore(tab, null);
+  assert.equal(drop(tab, label(folder), false, [tab], "copy"), false);
+  assert.equal(tab.parentElement, workspace.tabsContainer);
 });

@@ -895,8 +895,12 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       this.setFolderUserIcon(folder, icon);
     }
     folder.collapsed = source.collapsed;
-    // Only placeholders remain in the source; never delete unadopted tabs.
-    source.delete();
+    // In synced windows adoptTab can return an existing counterpart without
+    // removing its source tab. Deleting that source would mirror a close into
+    // the destination. Only dispose a source that truly contains placeholders.
+    if (!source.tabs.some(tab => !tab.hasAttribute("zen-empty-tab"))) {
+      source.delete();
+    }
     if (options.elementIndex !== undefined || options.tabIndex !== undefined) {
       gBrowser.moveTabTo(folder, options);
     }

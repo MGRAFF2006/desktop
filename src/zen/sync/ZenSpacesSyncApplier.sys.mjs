@@ -598,7 +598,10 @@ class nsZenSpacesSyncApplier {
               !tab.hasAttribute("zen-empty-tab") &&
               !tab.hasAttribute("zen-essential")
             ) {
-              this.#applyFolderMembership(win, tab, null);
+              const item = tab.group?.hasAttribute("split-view-group")
+                ? tab.group
+                : tab;
+              this.#applyFolderMembership(win, item, null);
             }
           }
         }

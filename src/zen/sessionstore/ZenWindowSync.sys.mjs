@@ -1704,8 +1704,11 @@ class nsZenWindowSync {
           if (lazy.gSyncOnlyPinnedTabs) {
             for (const tab of [...targetGroup.tabs]) {
               if (!tab.pinned && !tab.hasAttribute("zen-empty-tab")) {
-                while (tab.group?.isZenFolder) {
-                  win.gBrowser.ungroupTab(tab);
+                const item = tab.group?.hasAttribute("split-view-group")
+                  ? tab.group
+                  : tab;
+                while (item.group?.isZenFolder) {
+                  win.gBrowser.ungroupTab(item);
                 }
               }
             }

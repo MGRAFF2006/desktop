@@ -144,3 +144,45 @@ add_task(async function test_FolderCloseDoesNotCloseOptedOutOrdinaryTabs() {
     await SpecialPowers.popPrefEnv();
   }
 });
+
+add_task(async function test_FolderClosePreservesOptedOutSplitDescendants() {
+  await SpecialPowers.pushPrefEnv({ set: [[NORMAL_TABS_PREF, true]] });
+  const folderId = "test-folder-optout-split-parent";
+  const tabIds = ["test-folder-optout-split-a", "test-folder-optout-split-b"];
+  try {
+    await ZenSpacesSyncApplier.applyBatch([
+      folderRecord(folderId, { pinned: false }),
+      ...tabIds.map(id => tabRecord(id, { pinned: false, folderId })),
+    ]);
+    const tabs = tabIds.map(id => document.getElementById(id));
+    const split = gZenViewSplitter.splitTabs(tabs);
+    document.getElementById(folderId).appendChild(split);
+    await collectProjections();
+    await SpecialPowers.pushPrefEnv({ set: [[NORMAL_TABS_PREF, false]] });
+    try {
+      Assert.deepEqual(
+        await ZenSpacesSyncApplier.applyBatch([tombstone(folderId)]),
+        []
+      );
+      for (const tab of tabs) {
+        Assert.ok(
+          tab.isConnected && !tab.closing,
+          "opted-out split child survives remote folder close"
+        );
+        Assert.ok(!tab.pinned, "split child retains ordinary pin state");
+      }
+      Assert.ok(
+        !split.group?.isZenFolder,
+        "the entire split leaves the deleted folder"
+      );
+    } finally {
+      await SpecialPowers.popPrefEnv();
+    }
+  } finally {
+    await ZenSpacesSyncApplier.applyBatch([...tabIds, folderId].map(tombstone));
+    for (const id of [...tabIds, folderId]) {
+      ZenSpacesSyncModel.noteApplied(id, null);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});

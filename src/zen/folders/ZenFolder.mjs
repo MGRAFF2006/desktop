@@ -169,7 +169,7 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
     // Move whole child folders, rather than passing them to ungroupTab (which
     // expects a tab). Keep their order and their individual pinned states.
     for (const item of items) {
-      this.before(item);
+      gBrowser.zenHandleTabMove(item, () => this.before(item));
     }
     gBrowser.tabContainer._invalidateCachedTabs();
     await this.delete();

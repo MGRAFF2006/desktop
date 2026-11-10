@@ -145,6 +145,11 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
       pinned: false,
       isZenFolder: true,
       allItems: children,
+      get tabs() {
+        return this.allItems.flatMap(item =>
+          item.isZenFolder ? item.tabs : [item]
+        );
+      },
       collapsed: true,
       ownerDocument: {},
       documentGlobal: { gBrowser: {} },
@@ -158,7 +163,10 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   const inner = source("inner", [tab]);
   const root = source("root", [inner]);
   context.gBrowser = {
-    adoptTab: child => ({ ...child }),
+    adoptTab: child => {
+      inner.allItems = inner.allItems.filter(item => item !== child);
+      return { ...child };
+    },
     isTabGroup: () => false,
     isTab: item => !item.isZenFolder && !targets.has(item.id),
     tabContainer: { _invalidateCachedTabs() {} },
@@ -169,6 +177,15 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   assert.equal(adopted.collapsed, true);
   assert.equal(root.deleted, true);
   assert.equal(inner.deleted, true);
+
+  const synced = source("synced", [tab]);
+  context.gBrowser.adoptTab = child => ({ ...child });
+  folders.adoptFolder(synced);
+  assert.equal(
+    synced.deleted,
+    undefined,
+    "a synced counterpart must not close the source tab"
+  );
 
   const refused = source("refused", [tab]);
   context.gBrowser.adoptTab = () => null;

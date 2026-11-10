@@ -1181,6 +1181,9 @@
 
     /** Move native folder rows and their contents as a tree, preserving pin flags. */
     _handleFolderDrop(event) {
+      if (event.dataTransfer.dropEffect === "copy") {
+        return false;
+      }
       const dragged = event.dataTransfer.mozGetDataAt(TAB_DROP_TYPE, 0);
       if (!dragged || dragged.documentGlobal !== window || !dragged._dragData) {
         return false;
