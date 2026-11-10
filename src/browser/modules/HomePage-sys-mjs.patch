@@ -8,5 +8,5 @@ diff --git a/browser/modules/HomePage.sys.mjs b/browser/modules/HomePage.sys.mjs
 -      tabs = win.gBrowser.visibleTabs.slice(win.gBrowser.pinnedTabCount);
 +      tabs = win.gBrowser.visibleTabs.filter(tab => !tab.pinned && !tab.hasAttribute("zen-empty-tab"));
        tabs = tabs.filter(tab => !this.isPreferencesOrSettingsTab(tab));
- 
+
        // XXX: Bug 1441637 - Fix tabbrowser to report tab.closing before it blurs it
