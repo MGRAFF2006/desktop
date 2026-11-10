@@ -6,6 +6,14 @@ add_task(async function test_regular_folder_mixed_rows_and_unpack() {
   const before = BrowserTestUtils.addTab(gBrowser, "about:blank");
   const child = BrowserTestUtils.addTab(gBrowser, "about:blank");
   const after = BrowserTestUtils.addTab(gBrowser, "about:blank");
+  // New tabs may open next to the selected tab. Establish the fixture's
+  // intended row order explicitly before testing grouping at that position.
+  for (const tab of [before, child, after]) {
+    gBrowser.moveTabTo(tab, {
+      tabIndex: gBrowser.tabs.length - 1,
+      forceUngrouped: true,
+    });
+  }
   const folder = gZenFolders.createFolder([child], {
     insertBefore: child,
     renameFolder: false,

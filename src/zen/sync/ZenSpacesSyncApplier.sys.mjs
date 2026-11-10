@@ -454,6 +454,15 @@ class nsZenSpacesSyncApplier {
 
   /* Mark: folders */
 
+  #folderRootContainer(win, folder, workspaceUuid) {
+    const workspace = win.gZenWorkspaces.workspaceElement(
+      workspaceUuid || win.gZenWorkspaces.activeWorkspace
+    );
+    return folder.pinned
+      ? workspace?.pinnedTabsContainer
+      : workspace?.tabsContainer;
+  }
+
   async #applyFolders(win, folders, fail) {
     // Parents before children so nesting targets exist.
     const depths = new Map(folders.map(f => [f.key, f.data.parentFolderId]));
@@ -510,12 +519,11 @@ class nsZenSpacesSyncApplier {
           ? this.#itemIn(win, data.parentFolderId)
           : null;
         const currentParent = folder.group;
-        const workspace = win.gZenWorkspaces.workspaceElement(
-          data.workspaceUuid || win.gZenWorkspaces.activeWorkspace
+        const rootContainer = this.#folderRootContainer(
+          win,
+          folder,
+          data.workspaceUuid
         );
-        const rootContainer = folder.pinned
-          ? workspace?.pinnedTabsContainer
-          : workspace?.tabsContainer;
         if ((currentParent?.id || null) !== (data.parentFolderId || null)) {
           if (desiredParent?.isZenFolder) {
             if (

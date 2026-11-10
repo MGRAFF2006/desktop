@@ -155,7 +155,8 @@ add_task(async function test_FolderClosePreservesOptedOutSplitDescendants() {
       ...tabIds.map(id => tabRecord(id, { pinned: false, folderId })),
     ]);
     const tabs = tabIds.map(id => document.getElementById(id));
-    const split = gZenViewSplitter.splitTabs(tabs);
+    const splitData = gZenViewSplitter.splitTabs(tabs);
+    const split = document.getElementById(splitData.groupId);
     document.getElementById(folderId).appendChild(split);
     await collectProjections();
     await SpecialPowers.pushPrefEnv({ set: [[NORMAL_TABS_PREF, false]] });

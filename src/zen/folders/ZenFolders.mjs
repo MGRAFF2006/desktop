@@ -752,11 +752,11 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     if (!element?.isZenFolder) {
       return true;
     }
-    const parent = targetElement?.group;
-    if (parent === element || element.contains?.(parent)) {
+    const targetFolder = targetElement?.group;
+    if (targetFolder === element || element.contains?.(targetFolder)) {
       return false;
     }
-    const depth = parent ? parent.level + 1 : 0;
+    const depth = targetFolder ? targetFolder.level + 1 : 0;
     const descendants = element.querySelectorAll?.("zen-folder") ?? [];
     const height = Math.max(
       0,
@@ -780,7 +780,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       options.pinned ??
       (options.isLiveFolder ? true : undefined) ??
       anchor?.group?.pinned ??
-      (filteredTabs.length > 0 && filteredTabs.every(tab => tab.pinned));
+      (!!filteredTabs.length && filteredTabs.every(tab => tab.pinned));
     options = { ...options, pinned };
     const workspace = gZenWorkspaces.workspaceElement(
       options.workspaceId || gZenWorkspaces.activeWorkspace
@@ -1494,6 +1494,29 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     return storedData;
   }
 
+  #restoreRootFolders(tabFolderWorkingData) {
+    // Old sessions had only pinned folders. Explicit false is the additive
+    // upgrade marker; no existing tab or folder is repinned during restore.
+    for (const { stateData, node } of tabFolderWorkingData.values()) {
+      if (!node || stateData.parentId || stateData.splitViewGroup) {
+        continue;
+      }
+      const workspace = gZenWorkspaces.workspaceElement(stateData.workspaceId);
+      if (!workspace) {
+        continue;
+      }
+      const container = node.pinned
+        ? workspace.pinnedTabsContainer
+        : workspace.tabsContainer;
+      const previous = document.getElementById(stateData.prevSiblingInfo?.id);
+      if (previous?.parentElement === container && previous !== node) {
+        previous.after(node);
+      } else {
+        container.prepend(node);
+      }
+    }
+  }
+
   restoreDataFromSessionStore(data) {
     if (!data || this._sessionRestoring) {
       return;
@@ -1608,26 +1631,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
       }
     }
 
-    // Old sessions had only pinned folders. Explicit false is the additive
-    // upgrade marker; no existing tab or folder is repinned during restore.
-    for (const { stateData, node } of tabFolderWorkingData.values()) {
-      if (!node || stateData.parentId || stateData.splitViewGroup) {
-        continue;
-      }
-      const workspace = gZenWorkspaces.workspaceElement(stateData.workspaceId);
-      if (!workspace) {
-        continue;
-      }
-      const container = node.pinned
-        ? workspace.pinnedTabsContainer
-        : workspace.tabsContainer;
-      const previous = document.getElementById(stateData.prevSiblingInfo?.id);
-      if (previous?.parentElement === container && previous !== node) {
-        previous.after(node);
-      } else {
-        container.prepend(node);
-      }
-    }
+    this.#restoreRootFolders(tabFolderWorkingData);
 
     // Initialize UI state for all folders.
     for (const { stateData, node } of tabFolderWorkingData.values()) {

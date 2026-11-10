@@ -1179,7 +1179,11 @@
       }
     }
 
-    /** Move native folder rows and their contents as a tree, preserving pin flags. */
+    /**
+     * Move native folder rows and their contents as a tree, preserving pin flags.
+     *
+     * @param {DragEvent} event - The native tree drop.
+     */
     _handleFolderDrop(event) {
       if (event.dataTransfer.dropEffect === "copy") {
         return false;
@@ -1242,16 +1246,34 @@
       ) {
         return true;
       }
-      let anchor = targetFolder
-        ? null
-        : dropBefore
-          ? sibling
-          : sibling.nextSibling;
+      let anchor = null;
+      if (!targetFolder) {
+        anchor = dropBefore ? sibling : sibling.nextSibling;
+      }
       if (!destination?.isZenFolder && !anchor) {
         anchor = container.querySelector(
           "#tabbrowser-arrowscrollbox-periphery"
         );
       }
+      this._placeFolderDropItems(items, {
+        container,
+        anchor,
+        destination,
+        workspace,
+      });
+      gBrowser.tabContainer._invalidateCachedTabs();
+      gZenWorkspaces.updateTabsContainers();
+      if (isTabGroupLabel(dragged)) {
+        this._setIsDraggingTabGroup(source, false);
+        this._expandGroupOnDrop(dragged);
+      }
+      return true;
+    }
+
+    _placeFolderDropItems(
+      items,
+      { container, anchor, destination, workspace }
+    ) {
       for (const item of items) {
         let itemContainer = container;
         let itemAnchor = anchor;
@@ -1287,13 +1309,6 @@
           itemContainer.insertBefore(item, itemAnchor);
         });
       }
-      gBrowser.tabContainer._invalidateCachedTabs();
-      gZenWorkspaces.updateTabsContainers();
-      if (isTabGroupLabel(dragged)) {
-        this._setIsDraggingTabGroup(source, false);
-        this._expandGroupOnDrop(dragged);
-      }
-      return true;
     }
 
     /**

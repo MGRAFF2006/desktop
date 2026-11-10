@@ -162,7 +162,7 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
 
   async unpackTabs() {
     this.collapsed = false;
-    const parent = this.group;
+    const parentFolder = this.group;
     const items = this.allItems.filter(
       item => !item.hasAttribute("zen-empty-tab")
     );
@@ -175,7 +175,7 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
     }
     gBrowser.tabContainer._invalidateCachedTabs();
     await this.delete();
-    if (parent?.collapsed) {
+    if (parentFolder?.collapsed) {
       gZenFolders.relayoutCollapsedFolders();
     }
   }

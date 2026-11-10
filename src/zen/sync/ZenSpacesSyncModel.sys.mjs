@@ -544,12 +544,7 @@ class nsZenSpacesSyncModel {
     for (let pass = 0; pass < ctx.folders.length && unresolved.length; pass++) {
       for (let i = unresolved.length - 1; i >= 0; i--) {
         const folder = unresolved[i];
-        const previous = folder.prevSiblingInfo;
-        const predecessor = ctx.folderById
-          .get(scope.folder)
-          ?.emptyTabIds?.includes(previous?.id)
-          ? null
-          : previous?.id;
+        const predecessor = this.#folderPredecessor(ctx, scope, folder);
         if (predecessor && !seq.includes(predecessor)) {
           continue;
         }
@@ -573,6 +568,13 @@ class nsZenSpacesSyncModel {
         ctx.folderById.has(id) ||
         ctx.splitIds.has(id)
     );
+  }
+
+  #folderPredecessor(ctx, scope, folder) {
+    const previous = folder.prevSiblingInfo;
+    return ctx.folderById.get(scope.folder)?.emptyTabIds?.includes(previous?.id)
+      ? null
+      : previous?.id;
   }
 
   /**
