@@ -7,7 +7,14 @@
 // preview is needed to exercise the real media card and preference plumbing.
 add_task(async function test_global_media_gain_controls() {
   const pref = "zen.media.volume-gain-percent";
-  await SpecialPowers.pushPrefEnv({ set: [[pref, 100]] });
+  await SpecialPowers.pushPrefEnv({
+    set: [
+      [pref, 100],
+      ["full-screen-api.allow-trusted-requests-only", false],
+      ["full-screen-api.transition-duration.enter", "0 0"],
+      ["full-screen-api.transition-duration.leave", "0 0"],
+    ],
+  });
   const originalTab = gBrowser.selectedTab;
   const mediaTab = await addMediaTab();
   mediaTab.toggleMuteAudio();
@@ -17,13 +24,20 @@ add_task(async function test_global_media_gain_controls() {
       mediaTab.linkedBrowser,
       [VIDEO_SELECTOR],
       async selector => {
-        await content.document.querySelector(selector).play();
+        const video = content.document.querySelector(selector);
+        // Muted media registers its controller while fullscreen. Keep the
+        // real activation path without producing an audible preview.
+        await video.requestFullscreen();
+        await video.play();
       }
     );
     await TestUtils.waitForCondition(
       () => mediaTab.linkedBrowser.browsingContext.mediaController.isActive,
       "muted video has an active media controller"
     );
+    await SpecialPowers.spawn(mediaTab.linkedBrowser, [], async () => {
+      await content.document.exitFullscreen();
+    });
     gZenMediaController.activateMediaControls(
       mediaTab.linkedBrowser.browsingContext.mediaController,
       mediaTab.linkedBrowser
@@ -46,6 +60,11 @@ add_task(async function test_global_media_gain_controls() {
     is(slider.value, "100", "reset updates the slider");
     ok(mediaTab.linkedBrowser.audioMuted, "gain never unmutes playback");
   } finally {
+    await SpecialPowers.spawn(mediaTab.linkedBrowser, [], async () => {
+      if (content.document.fullscreenElement) {
+        await content.document.exitFullscreen();
+      }
+    });
     await pauseVideoIn(mediaTab);
     BrowserTestUtils.removeTab(mediaTab);
     gBrowser.selectedTab = originalTab;
