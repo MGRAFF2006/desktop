@@ -90,7 +90,7 @@ function manager({ resume = false, windowSync = true } = {}) {
     },
     XPCOMUtils: {
       defineLazyPreferenceGetter: (object, name) => {
-        object[name] = false;
+        object[name] = values[name] ?? false;
       },
     },
   });
