@@ -54,3 +54,7 @@
 # Set to a positive value to override with a custom radius
 - name: zen.theme.border-radius
   value: -1
+
+# Optional chrome-only appearance; disabling restores the existing theme.
+- name: zen.theme.square-amber
+  value: false
