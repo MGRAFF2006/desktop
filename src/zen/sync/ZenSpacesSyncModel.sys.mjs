@@ -498,17 +498,14 @@ class nsZenSpacesSyncModel {
         if (
           scope.space &&
           !tab.zenEssential &&
-          (tab.zenWorkspace || null) === scope.space &&
-          ctx.syncableTabIds.has(tab.zenSyncId)
+          (tab.zenWorkspace || null) === scope.space
         ) {
           push(tab.zenSyncId);
         }
         continue;
       }
       if (scope.folder && groupId === scope.folder) {
-        if (ctx.syncableTabIds.has(tab.zenSyncId)) {
-          push(tab.zenSyncId);
-        }
+        push(tab.zenSyncId);
         continue;
       }
       if (ctx.splitIds.has(groupId) || ctx.splitParents.has(groupId)) {
@@ -568,7 +565,14 @@ class nsZenSpacesSyncModel {
     for (const folder of unresolved) {
       push(folder.id);
     }
-    return seq;
+    // Resolve layout edges before filtering opted-out tab IDs. An empty
+    // folder can follow an ordinary tab that this device must not upload.
+    return seq.filter(
+      id =>
+        ctx.syncableTabIds.has(id) ||
+        ctx.folderById.has(id) ||
+        ctx.splitIds.has(id)
+    );
   }
 
   /**

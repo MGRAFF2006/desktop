@@ -21,11 +21,17 @@ test("sync projections preserve ordinary folder tree, empty sibling ordering, le
     tabs: [tab("before"), tab("member", "nested"), tab("after")],
     folders: [
       {
+        id: "empty-root",
+        pinned: false,
+        workspaceId: "ws",
+        prevSiblingInfo: { id: "before" },
+      },
+      {
         id: "root",
         pinned: false,
         workspaceId: "ws",
         emptyTabIds: ["placeholder-root"],
-        prevSiblingInfo: { id: "before" },
+        prevSiblingInfo: { id: "empty-root" },
       },
       {
         id: "empty",
@@ -103,6 +109,7 @@ test("sync projections preserve ordinary folder tree, empty sibling ordering, le
   let result = check();
   assert.deepEqual(Array.from(result.get("ws").data.children), [
     "before",
+    "empty-root",
     "root",
     "after",
     "tail",
@@ -117,6 +124,11 @@ test("sync projections preserve ordinary folder tree, empty sibling ordering, le
   assert.equal(result.get("member").data.folderId, "nested");
   pref = false;
   result = check();
+  assert.deepEqual(
+    Array.from(result.get("ws").data.children),
+    ["empty-root", "root", "tail"],
+    "excluding ordinary tabs keeps the relative order of remaining folders"
+  );
   assert.equal(result.has("member"), false);
   assert.equal(result.has("before"), false);
   assert.deepEqual(Array.from(result.get("root").data.children), [

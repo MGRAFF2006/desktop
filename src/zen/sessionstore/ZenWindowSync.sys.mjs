@@ -660,61 +660,62 @@ class nsZenWindowSync {
     { isEssential, isPinned }
   ) {
     const { gBrowser, gZenWorkspaces } = aWindow;
-    let originalSibling = aOriginalItem.previousElementSibling;
-    if (originalSibling?.classList.contains("space-fake-collapsible-start")) {
-      // Skip space fake elements.
-      originalSibling = originalSibling.previousElementSibling;
+    const parentGroup = aOriginalItem.group;
+    let container;
+    if (parentGroup?.hasAttribute("id")) {
+      const targetGroup = this.getItemFromWindow(aWindow, parentGroup.id);
+      // A group creation may still be queued. Never flatten its subtree into
+      // a workspace merely because the destination group is not ready yet.
+      if (!targetGroup) {
+        return;
+      }
+      container = targetGroup.groupContainer ?? targetGroup;
+    } else if (isEssential) {
+      container = gZenWorkspaces.getEssentialsSection(aTargetItem);
+    } else {
+      const workspaceId =
+        aOriginalItem.getAttribute("zen-workspace-id") ||
+        aOriginalItem.documentGlobal.gZenWorkspaces.activeWorkspace;
+      const workspace = gZenWorkspaces.workspaceElement(workspaceId);
+      container = isPinned
+        ? workspace?.pinnedTabsContainer
+        : workspace?.tabsContainer;
     }
-    let isFirstTab = true;
-    if (
-      gBrowser.isTabGroup(originalSibling) ||
-      gBrowser.isTab(originalSibling)
+    if (!container) {
+      return;
+    }
+
+    // With pinned-only mirroring, ordinary neighbours have no counterpart.
+    // Walk back to the closest shared sibling in the intended parent instead
+    // of leaving a moved folder in its old parent or position.
+    let relativeItem = null;
+    for (
+      let sibling = aOriginalItem.previousElementSibling;
+      sibling;
+      sibling = sibling.previousElementSibling
     ) {
-      isFirstTab =
-        !originalSibling.hasAttribute("id") ||
-        originalSibling.hasAttribute("zen-empty-tab");
+      if (
+        !(gBrowser.isTab(sibling) || gBrowser.isTabGroup(sibling)) ||
+        sibling.hasAttribute("zen-empty-tab")
+      ) {
+        continue;
+      }
+      const candidate = this.getItemFromWindow(aWindow, sibling.id);
+      if (
+        candidate &&
+        candidate !== aTargetItem &&
+        candidate.parentNode === container
+      ) {
+        relativeItem = candidate;
+        break;
+      }
     }
 
     gBrowser.zenHandleTabMove(aTargetItem, () => {
-      if (isFirstTab) {
-        let container;
-        const parentGroup = aOriginalItem.group;
-        if (parentGroup?.hasAttribute("id")) {
-          container = this.getItemFromWindow(
-            aWindow,
-            parentGroup.getAttribute("id")
-          );
-          if (container) {
-            if (container?.tabs?.length) {
-              // First tab in folders is the empty tab placeholder.
-              container.tabs[0].after(aTargetItem);
-            } else {
-              container.appendChild(aTargetItem);
-            }
-            return;
-          }
-        }
-        if (isEssential) {
-          container = gZenWorkspaces.getEssentialsSection(aTargetItem);
-        } else {
-          const workspaceId =
-            aTargetItem.getAttribute("zen-workspace-id") ||
-            aOriginalItem.documentGlobal.gZenWorkspaces.activeWorkspace;
-          const workspaceElement = gZenWorkspaces.workspaceElement(workspaceId);
-          container = isPinned
-            ? workspaceElement?.pinnedTabsContainer
-            : workspaceElement?.tabsContainer;
-        }
-        if (container) {
-          container.insertBefore(aTargetItem, container.firstChild);
-        }
-        return;
-      }
-      const relativeTab = this.getItemFromWindow(aWindow, originalSibling.id);
-      if (relativeTab) {
+      if (relativeItem) {
         try {
           gBrowser.tabContainer.tabDragAndDrop.handle_drop_transition(
-            relativeTab,
+            relativeItem,
             aTargetItem,
             [aTargetItem],
             false
@@ -722,7 +723,24 @@ class nsZenWindowSync {
         } catch (e) {
           console.error("ZenWindowSync: failed to animate a synced move", e);
         }
-        relativeTab.after(aTargetItem);
+        relativeItem.after(aTargetItem);
+        return;
+      }
+      // Keep the group's placeholder and the workspace's structural markers
+      // ahead of the first real row. They must not become ordinary siblings.
+      const placeholder = Array.from(container.children).find(
+        child => gBrowser.isTab(child) && child.hasAttribute("zen-empty-tab")
+      );
+      if (placeholder) {
+        placeholder.after(aTargetItem);
+      } else {
+        const firstRow = Array.from(container.children).find(
+          child =>
+            gBrowser.isTab(child) ||
+            gBrowser.isTabGroup(child) ||
+            child.classList.contains("pinned-tabs-container-separator")
+        );
+        container.insertBefore(aTargetItem, firstRow ?? null);
       }
     });
   }
@@ -1695,6 +1713,11 @@ class nsZenWindowSync {
   }
 
   on_TabGroupRemoved(aEvent) {
+    if (aEvent.detail?.adopting) {
+      // The group now exists in the destination window. Propagating a close
+      // here would delete the adopted subtree or its existing counterpart.
+      return;
+    }
     const tabGroup = aEvent.target;
     const window = tabGroup.documentGlobal;
     this.#runOnAllWindows(window, win => {
