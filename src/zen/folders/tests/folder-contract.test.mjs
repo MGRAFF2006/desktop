@@ -118,3 +118,63 @@ test("legacy folder pin state defaults to pinned; explicit false survives reconn
   folder.pinned = true;
   assert.equal(folder.pinned, true);
 });
+
+test("cross-window folder adoption preserves nesting and leaves refused source children alive", () => {
+  const { context, folders } = manager();
+  context.document = { getElementById: () => null };
+  context.gZenWorkspaces = { activeWorkspace: "target" };
+  const targets = new Map();
+  folders.createFolder = (tabs, options) => {
+    const folder = {
+      ...options,
+      children: [],
+      addTabs(tabs) {
+        this.children.push(...tabs);
+      },
+      appendChild(child) {
+        this.children.push(child);
+      },
+    };
+    targets.set(options.id, folder);
+    return folder;
+  };
+  function source(id, children) {
+    return {
+      id,
+      label: id,
+      pinned: false,
+      isZenFolder: true,
+      allItems: children,
+      collapsed: true,
+      ownerDocument: {},
+      documentGlobal: { gBrowser: {} },
+      hasAttribute: () => false,
+      delete() {
+        this.deleted = true;
+      },
+    };
+  }
+  const tab = { id: "child", pinned: false, hasAttribute: () => false };
+  const inner = source("inner", [tab]);
+  const root = source("root", [inner]);
+  context.gBrowser = {
+    adoptTab: child => ({ ...child }),
+    isTabGroup: () => false,
+    isTab: item => !item.isZenFolder && !targets.has(item.id),
+    tabContainer: { _invalidateCachedTabs() {} },
+  };
+  const adopted = folders.adoptFolder(root);
+  assert.equal(adopted.children[0], targets.get("inner"));
+  assert.equal(adopted.children[0].children[0].pinned, false);
+  assert.equal(adopted.collapsed, true);
+  assert.equal(root.deleted, true);
+  assert.equal(inner.deleted, true);
+
+  const refused = source("refused", [tab]);
+  context.gBrowser.adoptTab = () => null;
+  assert.throws(
+    () => folders.adoptFolder(refused),
+    /Could not adopt folder child/
+  );
+  assert.equal(refused.deleted, undefined, "refused source must not be closed");
+});
