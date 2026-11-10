@@ -106,4 +106,24 @@ add_task(async function test_mixed_tree_native_pin_and_position_contracts() {
     "Ordinary child stays ordinary through native operations"
   );
   ok(laterPin.pinned, "Pinned child stays pinned through native operations");
+  // Default forceUngrouped=false must not let a group/label borrow the child
+  // move exemption when its target index happens to be inside another folder.
+  for (const moving of [pinnedFolder, pinnedFolder.labelElement]) {
+    gBrowser.moveTabTo(moving, { tabIndex: laterPin.index });
+    Assert.equal(
+      pinnedFolder.parentElement,
+      gZenWorkspaces.pinnedTabsContainer,
+      "Indexed pinned folder moves retain the pinned root section"
+    );
+    ok(pinnedFolder.pinned, "Indexed folder move preserves its own marker");
+  }
+  for (const moving of [ordinaryFolder, ordinaryFolder.labelElement]) {
+    gBrowser.moveTabTo(moving, { tabIndex: regularChild.index });
+    Assert.equal(
+      ordinaryFolder.parentElement,
+      gZenWorkspaces.activeWorkspaceElement.tabsContainer,
+      "Indexed ordinary folder moves retain the ordinary root section"
+    );
+    ok(!ordinaryFolder.pinned, "Indexed label move preserves its own marker");
+  }
 });
