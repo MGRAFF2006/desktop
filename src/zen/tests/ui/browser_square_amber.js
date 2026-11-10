@@ -27,7 +27,7 @@ add_task(async function test_square_amber_is_reversible_and_chrome_only() {
         try {
           const selectedBackground =
             gBrowser.selectedTab.querySelector(".tab-background");
-          await BrowserTestUtils.waitForCondition(
+          await TestUtils.waitForCondition(
             () => getComputedStyle(selectedBackground).borderTopLeftRadius === "0px",
             "Wait for preference-driven chrome restyling"
           );
@@ -72,7 +72,7 @@ add_task(async function test_square_amber_is_reversible_and_chrome_only() {
         }
       }
     );
-    await BrowserTestUtils.waitForCondition(
+    await TestUtils.waitForCondition(
       () => getComputedStyle(background).borderTopLeftRadius === originalRadius,
       "Wait for the previous chrome geometry to return"
     );
