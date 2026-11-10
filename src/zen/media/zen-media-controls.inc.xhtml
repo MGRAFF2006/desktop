@@ -29,6 +29,18 @@
             <label class="zen-media-duration">0:00</label>
           </hbox>
         </vbox>
+        <vbox class="zen-media-gain-controls">
+          <label data-l10n-id="zen-media-gain-label"/>
+          <hbox align="center">
+            <html:input type="range" class="zen-media-gain-slider"
+              min="100" max="200" step="10" value="100"
+              data-l10n-id="zen-media-gain-slider"/>
+            <label class="zen-media-gain-value"/>
+            <toolbarbutton class="zen-media-gain-reset toolbarbutton-1"
+              data-l10n-id="zen-media-gain-reset"/>
+          </hbox>
+          <description class="zen-media-gain-help" data-l10n-id="zen-media-gain-help"/>
+        </vbox>
         <hbox class="zen-media-controls-hbox">
           <toolbarbutton class="zen-media-focus-button toolbarbutton-1">
             <box class="zen-media-notes"/>

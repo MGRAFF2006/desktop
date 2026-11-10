@@ -167,3 +167,13 @@ zen-window-sync-migration-dialog-accept = Got It
 zen-appmenu-new-blank-window =
     .label = New Blank Window
 
+
+# This controls native decoder output for every tab, not only this media card.
+zen-media-gain-label = Media volume — all tabs
+zen-media-gain-slider =
+    .aria-label = Media volume for all tabs
+zen-media-gain-value = { $percent }%
+zen-media-gain-reset =
+    .label = Reset
+    .tooltiptext = Restore 100% media volume in all tabs
+zen-media-gain-help = Audio and video playback only; excludes Web Audio and calls. Saved for this browser. Boosting can distort loud audio.
