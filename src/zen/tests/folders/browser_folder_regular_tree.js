@@ -89,3 +89,135 @@ add_task(async function test_existing_pinned_folder_remains_supported() {
   );
   await removeFolder(folder);
 });
+
+add_task(
+  async function test_homepage_tabs_use_individual_flags_across_folder_sections() {
+    const { HomePage } = ChromeUtils.importESModule(
+      "resource:///modules/HomePage.sys.mjs"
+    );
+    const normal = BrowserTestUtils.addTab(
+      gBrowser,
+      "https://example.com/ordinary"
+    );
+    const pin = BrowserTestUtils.addTab(gBrowser, "https://example.com/pinned");
+    gBrowser.pinTab(pin);
+    const legacy = gZenFolders.createFolder([], {
+      pinned: true,
+      renameFolder: false,
+    });
+    const ordinary = gZenFolders.createFolder([], {
+      pinned: false,
+      renameFolder: false,
+    });
+    try {
+      legacy.addTabs([normal]);
+      ordinary.addTabs([pin]);
+      const homepageTabs = HomePage.getTabsForCustomHomepage(window);
+      Assert.ok(
+        homepageTabs.includes(normal),
+        "ordinary child in pinned root remains eligible"
+      );
+      Assert.ok(
+        !homepageTabs.includes(pin),
+        "pinned child in ordinary root remains excluded"
+      );
+      Assert.ok(
+        !homepageTabs.some(tab => tab.hasAttribute("zen-empty-tab")),
+        "synthetic folder anchors are never homepages"
+      );
+    } finally {
+      await removeFolder(legacy);
+      await removeFolder(ordinary);
+    }
+  }
+);
+
+add_task(
+  async function test_last_window_warning_counts_visible_ordinary_tabs() {
+    const sandbox = Cu.Sandbox(
+      Services.scriptSecurityManager.getSystemPrincipal(),
+      {
+        sandboxPrototype: window,
+        wantXrays: false,
+      }
+    );
+    try {
+      const tab = attributes => ({
+        pinned: attributes.includes("pinned"),
+        hasAttribute: name => attributes.includes(name),
+      });
+      let triggerQueries = 0;
+      sandbox.window = {};
+      sandbox.document = { documentElement: { hasAttribute: () => false } };
+      sandbox.browserWindows = () => [sandbox.window];
+      sandbox.closeWindow = () => true;
+      sandbox.CanCloseWindow = () => true;
+      sandbox.warnAboutClosingWindow = () => true;
+      sandbox.AppConstants = { platform: "linux" };
+      sandbox.Services = { prefs: { getBoolPref: () => true } };
+      sandbox.gLastWindowCloseTriggerHandled = false;
+      sandbox.ChromeUtils = {
+        importESModule: () => ({
+          Spotlight: { close() {} },
+          TaskbarTabsUtils: { isTaskbarTabWindow: () => false },
+          ASRouter: {
+            initialized: true,
+            hasMessageForTrigger: () => {
+              triggerQueries++;
+              return false;
+            },
+          },
+        }),
+      };
+      sandbox.gBrowser = {
+        visibleTabs: [tab([]), tab([])],
+        pinnedTabCount: 40,
+        openTabs: [],
+      };
+      Cu.evalInSandbox(`(${WindowIsClosing.toString()})(null)`, sandbox);
+      Assert.equal(
+        triggerQueries,
+        0,
+        "hidden pins cannot suppress the warning branch for two visible ordinary tabs"
+      );
+      sandbox.gBrowser.visibleTabs = [
+        tab([]),
+        tab(["zen-empty-tab"]),
+        tab(["zen-glance-tab"]),
+        tab(["pinned"]),
+      ];
+      Cu.evalInSandbox(`(${WindowIsClosing.toString()})(null)`, sandbox);
+      Assert.equal(
+        triggerQueries,
+        1,
+        "synthetic/glance/pinned rows do not count as a second ordinary tab"
+      );
+    } finally {
+      Cu.nukeSandbox(sandbox);
+    }
+  }
+);
+
+add_task(
+  async function test_explicit_pinned_child_insert_keeps_ordinary_folder_parent() {
+    const folder = gZenFolders.createFolder([], {
+      pinned: false,
+      renameFolder: false,
+    });
+    try {
+      const tab = BrowserTestUtils.addTab(gBrowser, "about:blank", {
+        pinned: true,
+        tabGroup: folder,
+      });
+      Assert.equal(
+        tab.group,
+        folder,
+        "workspace insertion hook preserves explicit folder placement"
+      );
+      Assert.ok(tab.pinned, "explicit pinned child retains its own flag");
+      Assert.ok(!folder.pinned, "child does not repin the root folder");
+    } finally {
+      await removeFolder(folder);
+    }
+  }
+);

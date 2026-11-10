@@ -885,6 +885,7 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
         adopted = gBrowser.adoptTab(item, {
           selectTab: !!options.selectTab && item === selected,
           spaceId: gZenWorkspaces.activeWorkspace,
+          preservePinState: true,
         });
       }
       if (!adopted) {

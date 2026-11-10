@@ -3680,6 +3680,14 @@ class nsZenWorkspaces {
   }
 
   fixTabInsertLocation(tab) {
+    if (!tab.hasAttribute("zen-essential")) {
+      for (let group = tab.group; group; group = group.group) {
+        if (group.isZenFolder) {
+          // Explicit tree placement takes precedence over the child's flag.
+          return;
+        }
+      }
+    }
     if (tab.hasAttribute("zen-essential")) {
       // Essential tabs should always be inserted at the end of the essentials section
       const essentialsSection = this.getEssentialsSection(tab);
