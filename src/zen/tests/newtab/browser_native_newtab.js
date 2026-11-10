@@ -197,18 +197,34 @@ add_task(async function search_uses_the_selected_browser_engine() {
   await SearchService.init();
   const previous = await SearchService.getDefault();
   const previousPrivate = await SearchService.getDefaultPrivate();
+  const privateDefaultPref = "browser.search.separatePrivateDefault.enabled";
+  const hadPrivateDefaultPref =
+    Services.prefs.prefHasUserValue(privateDefaultPref);
+  const previousPrivateDefaultPref =
+    Services.prefs.getBoolPref(privateDefaultPref);
   let normalExtension, privateExtension;
   registerCleanupFunction(async () => {
-    await SearchService.setDefault(
-      previous,
-      SearchService.CHANGE_REASON.UNKNOWN,
-    );
-    await SearchService.setDefaultPrivate(
-      previousPrivate,
-      SearchService.CHANGE_REASON.UNKNOWN,
-    );
-    await privateExtension?.unload();
-    await normalExtension?.unload();
+    try {
+      await SearchService.setDefault(
+        previous,
+        SearchService.CHANGE_REASON.UNKNOWN,
+      );
+      await SearchService.setDefaultPrivate(
+        previousPrivate,
+        SearchService.CHANGE_REASON.UNKNOWN,
+      );
+      await privateExtension?.unload();
+      await normalExtension?.unload();
+    } finally {
+      if (hadPrivateDefaultPref) {
+        Services.prefs.setBoolPref(
+          privateDefaultPref,
+          previousPrivateDefaultPref,
+        );
+      } else {
+        Services.prefs.clearUserPref(privateDefaultPref);
+      }
+    }
   });
   await SpecialPowers.pushPrefEnv({
     set: [
