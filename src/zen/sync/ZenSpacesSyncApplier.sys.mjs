@@ -546,7 +546,9 @@ class nsZenSpacesSyncApplier {
               win.gBrowser.zenHandleTabMove(folder, () => {
                 container.insertBefore(
                   folder,
-                  container.querySelector(".pinned-tabs-container-separator")
+                  container.querySelector(
+                    ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+                  )
                 );
               });
             }
@@ -560,11 +562,9 @@ class nsZenSpacesSyncApplier {
           win.gBrowser.zenHandleTabMove(folder, () => {
             rootContainer.insertBefore(
               folder,
-              folder.pinned
-                ? rootContainer.querySelector(
-                    ".pinned-tabs-container-separator"
-                  )
-                : null
+              rootContainer.querySelector(
+                ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+              )
             );
           });
         }

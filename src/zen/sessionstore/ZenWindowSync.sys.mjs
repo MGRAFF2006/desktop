@@ -776,7 +776,8 @@ class nsZenWindowSync {
           child =>
             gBrowser.isTab(child) ||
             gBrowser.isTabGroup(child) ||
-            child.classList.contains("pinned-tabs-container-separator")
+            child.classList.contains("pinned-tabs-container-separator") ||
+            child.id === "tabbrowser-arrowscrollbox-periphery"
         );
         container.insertBefore(aTargetItem, firstRow ?? null);
       }

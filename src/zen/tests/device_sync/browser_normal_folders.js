@@ -187,3 +187,90 @@ add_task(async function test_FolderClosePreservesOptedOutSplitDescendants() {
     await SpecialPowers.popPrefEnv();
   }
 });
+
+add_task(
+  async function test_RemoteOrdinaryRootMovesPreservePeripheryAndNativeTabs() {
+    await gZenWorkspaces.promiseInitialized;
+    await SpecialPowers.pushPrefEnv({ set: [[NORMAL_TABS_PREF, true]] });
+    const strip = gZenWorkspaces.activeWorkspaceElement.tabsContainer;
+    const periphery = strip.querySelector(
+      "#tabbrowser-arrowscrollbox-periphery"
+    );
+    try {
+      for (const nested of [true, false]) {
+        const parentId = `test-periphery-parent-${nested}`;
+        const folderId = `test-periphery-folder-${nested}`;
+        const tabId = `test-periphery-member-${nested}`;
+        const ids = [tabId, folderId, ...(nested ? [parentId] : [])];
+        try {
+          Assert.deepEqual(
+            await ZenSpacesSyncApplier.applyBatch([
+              ...(nested
+                ? [
+                    folderRecord(parentId, {
+                      pinned: false,
+                      children: [folderId],
+                    }),
+                  ]
+                : []),
+              folderRecord(folderId, {
+                pinned: !nested,
+                parentFolderId: nested ? parentId : null,
+                children: [tabId],
+              }),
+              tabRecord(tabId, { pinned: false, folderId }),
+            ]),
+            [],
+            "The initial folder and contents apply"
+          );
+          Assert.deepEqual(
+            await ZenSpacesSyncApplier.applyBatch([
+              folderRecord(folderId, { pinned: false, children: [tabId] }),
+            ]),
+            [],
+            "The root move applies without a workspace ordering record"
+          );
+          const folder = document.getElementById(folderId);
+          Assert.equal(
+            folder.parentNode,
+            strip,
+            "The folder becomes an ordinary workspace root"
+          );
+          Assert.equal(
+            strip.lastElementChild,
+            periphery,
+            "The structural periphery stays last"
+          );
+          for (const tab of folder.tabs) {
+            Assert.ok(
+              gBrowser.tabs.includes(tab),
+              "Every folder descendant remains in native enumeration"
+            );
+            Assert.equal(
+              gBrowser.tabs[tab.index],
+              tab,
+              "Every folder descendant has a native index"
+            );
+          }
+        } finally {
+          // Repair a failing placement before native cleanup; assertions above
+          // must still observe the actual production result.
+          const folder = document.getElementById(folderId);
+          if (
+            folder?.parentNode === strip &&
+            strip.lastElementChild !== periphery
+          ) {
+            strip.insertBefore(folder, periphery);
+            gBrowser.tabContainer._invalidateCachedTabs();
+          }
+          await ZenSpacesSyncApplier.applyBatch(ids.map(tombstone));
+          for (const id of ids) {
+            ZenSpacesSyncModel.noteApplied(id, null);
+          }
+        }
+      }
+    } finally {
+      await SpecialPowers.popPrefEnv();
+    }
+  }
+);

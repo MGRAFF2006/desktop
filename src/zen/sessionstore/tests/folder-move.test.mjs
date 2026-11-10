@@ -65,6 +65,11 @@ function setup() {
   const pinned = new Element("pins", "container");
   const marker = new Element("marker", "space-fake-collapsible-start");
   root.appendChild(marker);
+  const periphery = new Element(
+    "tabbrowser-arrowscrollbox-periphery",
+    "periphery"
+  );
+  root.appendChild(periphery);
   const target = new Element("moving");
   pinned.appendChild(target);
   const items = new Map([[target.id, target]]);
@@ -117,6 +122,7 @@ function setup() {
   return {
     root,
     marker,
+    periphery,
     pinned,
     target,
     items,
@@ -126,9 +132,9 @@ function setup() {
 }
 
 test("shared folder skips a missing ordinary neighbour and follows the nearest shared row", async () => {
-  const { root, target, items, original, move } = setup();
+  const { root, periphery, target, items, original, move } = setup();
   const shared = new Element("shared");
-  root.appendChild(shared);
+  root.insertBefore(shared, periphery);
   items.set(shared.id, shared);
   const sourceParent = new Element("source", "container");
   sourceParent.appendChild(new Element("shared"));
@@ -171,9 +177,9 @@ test("a folder with only excluded predecessors reparents after the destination p
 });
 
 test("moving back to workspace root preserves its leading structural marker", async () => {
-  const { root, marker, target, original, move } = setup();
+  const { root, marker, periphery, target, original, move } = setup();
   const existing = new Element("existing");
-  root.appendChild(existing);
+  root.insertBefore(existing, periphery);
   const sourceParent = new Element("source", "container");
   sourceParent.appendChild(
     new Element("source-marker", "space-fake-collapsible-start")
@@ -184,7 +190,16 @@ test("moving back to workspace root preserves its leading structural marker", as
   assert.equal(target.parentNode, root);
   assert.deepEqual(
     root.children,
-    [marker, target, existing],
+    [marker, target, existing, periphery],
     "real rows follow the root marker"
   );
+});
+
+test("a root move into empty ordinary rows keeps the workspace periphery last", async () => {
+  const { root, marker, periphery, target, original, move } = setup();
+  const sourceParent = new Element("source", "container");
+  sourceParent.appendChild(original);
+  await move();
+  assert.equal(target.parentNode, root);
+  assert.deepEqual(root.children, [marker, target, periphery]);
 });

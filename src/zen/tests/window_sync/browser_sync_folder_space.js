@@ -183,3 +183,94 @@ add_task(
     }
   }
 );
+
+add_task(async function test_MirroredRootMovePreservesEmptyOrdinaryPeriphery() {
+  await gZenWorkspaces.promiseInitialized;
+  const previousSpace = gZenWorkspaces.getActiveWorkspace();
+  let space;
+  let folder;
+  try {
+    await withNewSyncedWindow(async win => {
+      // A workspace created after the peer opens has never needed that
+      // peer's empty-tab placeholder, so the destination contains only markers.
+      space = await gZenWorkspaces.createAndSaveWorkspace(
+        "Root move periphery"
+      );
+      await win.gZenWorkspaces.changeWorkspace(previousSpace);
+      const tab = gBrowser.addTrustedTab("about:blank", { inBackground: true });
+      folder = gZenFolders.createFolder([tab], {
+        pinned: true,
+        renameFolder: false,
+      });
+      await TestUtils.waitForCondition(
+        () =>
+          win.document
+            .getElementById(folder.id)
+            ?.tabs.some(child => child.id === tab.id),
+        "The populated pinned folder is mirrored"
+      );
+      const mirror = win.document.getElementById(folder.id);
+      const strip = win.gZenWorkspaces.workspaceElement(
+        space.uuid
+      ).tabsContainer;
+      const periphery = strip.querySelector(
+        "#tabbrowser-arrowscrollbox-periphery"
+      );
+      // Hold the mirror in its old parent until the explicit production move
+      // handler runs; mutation events must not pre-position it for this test.
+      await SpecialPowers.pushPrefEnv({
+        set: [["zen.window-sync.enabled", false]],
+      });
+      try {
+        Assert.ok(
+          !Array.from(strip.children).some(
+            child => win.gBrowser.isTab(child) || win.gBrowser.isTabGroup(child)
+          ),
+          "The destination has no row or placeholder to serve as an insertion anchor"
+        );
+        folder.pinned = false;
+        gBrowser.zenHandleTabMove(folder, () =>
+          gZenFolders.placeAtWorkspaceRoot(folder, space.uuid)
+        );
+        await gZenWindowSync.on_TabMove({ target: folder });
+        Assert.equal(
+          mirror.parentNode,
+          strip,
+          "The mirror moves into inactive ordinary rows"
+        );
+        Assert.equal(
+          strip.lastElementChild,
+          periphery,
+          "The periphery stays last without a shared preceding row"
+        );
+        await win.gZenWorkspaces.changeWorkspace(space);
+        for (const child of mirror.tabs) {
+          Assert.ok(
+            win.gBrowser.tabs.includes(child),
+            "The mirrored descendant is in native enumeration"
+          );
+          Assert.equal(
+            win.gBrowser.tabs[child.index],
+            child,
+            "The mirrored descendant has a native index"
+          );
+        }
+      } finally {
+        if (
+          mirror.parentNode === strip &&
+          strip.lastElementChild !== periphery
+        ) {
+          strip.insertBefore(mirror, periphery);
+          win.gBrowser.tabContainer._invalidateCachedTabs();
+        }
+        await folder.delete();
+        await SpecialPowers.popPrefEnv();
+      }
+    });
+  } finally {
+    await gZenWorkspaces.changeWorkspace(previousSpace);
+    if (space) {
+      await gZenWorkspaces.removeWorkspace(space.uuid);
+    }
+  }
+});
