@@ -661,16 +661,14 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
         beforeChangeCallback: async newWorkspace => {
           await new Promise(resolve => {
             requestAnimationFrame(async () => {
-              const workspace = gZenWorkspaces.workspaceElement(
-                newWorkspace.uuid
+              const items = folder.allItems.filter(
+                item => !item.hasAttribute("zen-empty-tab")
               );
-              const workspaceContainer = folder.pinned
-                ? workspace.pinnedTabsContainer
-                : workspace.tabsContainer;
-              const tabs = folder.allItems.filter(
-                tab => !tab.hasAttribute("zen-empty-tab")
-              );
-              workspaceContainer.append(...tabs);
+              for (const item of items) {
+                gBrowser.zenHandleTabMove(item, () =>
+                  this.placeAtWorkspaceRoot(item, newWorkspace.uuid)
+                );
+              }
               await folder.delete();
               gBrowser.tabContainer._invalidateCachedTabs();
               if (selectedTab) {
@@ -848,6 +846,50 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     return folder;
   }
 
+  placeAtWorkspaceRoot(item, workspaceId, before = null) {
+    const workspace = gZenWorkspaces.workspaceElement(workspaceId);
+    const container = item.pinned
+      ? workspace.pinnedTabsContainer
+      : workspace.tabsContainer;
+    const end = container.querySelector(
+      ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+    );
+    container.insertBefore(
+      item,
+      before?.parentElement === container ? before : end
+    );
+    item.setAttribute("zen-workspace-id", workspaceId);
+    for (const descendant of item.querySelectorAll?.(
+      "tab, zen-folder, tab-group"
+    ) ?? []) {
+      descendant.setAttribute("zen-workspace-id", workspaceId);
+    }
+  }
+
+  placeUngroupedItem(item, owner, beforeOwner = false) {
+    // A nested pop preserves sibling order in its parent. At the workspace
+    // root, each item's own flag/marker determines its physical section.
+    if (owner.group?.isZenFolder) {
+      beforeOwner ? owner.before(item) : owner.after(item);
+      return;
+    }
+    const workspaceId =
+      owner.getAttribute("zen-workspace-id") || gZenWorkspaces.activeWorkspace;
+    const workspace = gZenWorkspaces.workspaceElement(workspaceId);
+    if (!workspace || gZenWorkspaces.privateWindowOrDisabled) {
+      beforeOwner ? owner.before(item) : owner.after(item);
+      return;
+    }
+    const container = item.pinned
+      ? workspace.pinnedTabsContainer
+      : workspace.tabsContainer;
+    if (owner.parentElement === container) {
+      beforeOwner ? owner.before(item) : owner.after(item);
+    } else {
+      this.placeAtWorkspaceRoot(item, workspaceId);
+    }
+  }
+
   adoptFolder(source, options = {}) {
     if (source.ownerDocument === document) {
       return source;
@@ -921,6 +963,8 @@ class nsZenFolders extends nsZenDOMOperatedFeature {
     // removing its source tab. Deleting that source would mirror a close into
     // the destination. Only dispose a source that truly contains placeholders.
     if (!source.tabs.some(tab => !tab.hasAttribute("zen-empty-tab"))) {
+      source.removedByAdoption = true;
+      source.saveOnWindowClose = false;
       source.delete();
     }
     if (options.elementIndex !== undefined || options.tabIndex !== undefined) {

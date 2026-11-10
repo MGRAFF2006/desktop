@@ -201,3 +201,46 @@ test("cross-window folder adoption preserves nesting and leaves refused source c
   );
   assert.equal(refused.deleted, undefined, "refused source must not be closed");
 });
+
+test("ungrouped roots route by their own flags while nested pops retain parent order", () => {
+  const { context, folders } = manager();
+  const moved = [];
+  function container(name) {
+    return {
+      querySelector: () => null,
+      insertBefore(item) {
+        moved.push([name, item]);
+      },
+    };
+  }
+  const pins = container("pins"),
+    normal = container("normal");
+  context.gZenWorkspaces = {
+    activeWorkspace: "space",
+    workspaceElement: () => ({
+      pinnedTabsContainer: pins,
+      tabsContainer: normal,
+    }),
+  };
+  function item(pinned) {
+    return { pinned, setAttribute() {}, querySelectorAll: () => [] };
+  }
+  const ordinary = item(false),
+    pinned = item(true);
+  const pinnedFolder = { parentElement: pins, getAttribute: () => "space" };
+  const ordinaryFolder = { parentElement: normal, getAttribute: () => "space" };
+  folders.placeUngroupedItem(ordinary, pinnedFolder);
+  folders.placeUngroupedItem(pinned, ordinaryFolder);
+  assert.deepEqual(moved, [
+    ["normal", ordinary],
+    ["pins", pinned],
+  ]);
+  assert.equal(ordinary.pinned, false);
+  assert.equal(pinned.pinned, true);
+  const nested = {
+    group: { isZenFolder: true },
+    before: value => moved.push(["parent", value]),
+  };
+  folders.placeUngroupedItem(ordinary, nested, true);
+  assert.deepEqual(moved.at(-1), ["parent", ordinary]);
+});

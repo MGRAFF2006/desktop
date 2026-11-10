@@ -220,3 +220,53 @@ add_task(
     }
   }
 );
+
+add_task(
+  async function test_mixed_unpack_and_native_ungroup_preserve_root_sections() {
+    const normal = BrowserTestUtils.addTab(gBrowser, "about:blank");
+    const pin = BrowserTestUtils.addTab(gBrowser, "about:blank");
+    gBrowser.pinTab(pin);
+    const legacy = gZenFolders.createFolder([], {
+      pinned: true,
+      renameFolder: false,
+    });
+    const ordinary = gZenFolders.createFolder([], {
+      pinned: false,
+      renameFolder: false,
+    });
+    try {
+      legacy.addTabs([normal]);
+      ordinary.addTabs([pin]);
+      gBrowser.ungroupTab(normal);
+      Assert.equal(
+        normal.parentElement,
+        gZenWorkspaces.activeWorkspaceElement.tabsContainer,
+        "native ungroup rescues ordinary children to ordinary roots"
+      );
+      legacy.addTabs([normal]);
+      await legacy.unpackTabs();
+      await ordinary.unpackTabs();
+      Assert.equal(
+        normal.parentElement,
+        gZenWorkspaces.activeWorkspaceElement.tabsContainer,
+        "unpack keeps ordinary roots in ordinary section"
+      );
+      Assert.equal(
+        pin.parentElement,
+        gZenWorkspaces.activeWorkspaceElement.pinnedTabsContainer,
+        "unpack returns pinned children to pins"
+      );
+      Assert.ok(
+        !normal.pinned && pin.pinned,
+        "root routing never repins children"
+      );
+    } finally {
+      for (const tab of [normal, pin]) {
+        if (tab.isConnected && !tab.closing)
+          await BrowserTestUtils.removeTab(tab);
+      }
+      if (legacy.isConnected) await removeFolder(legacy);
+      if (ordinary.isConnected) await removeFolder(ordinary);
+    }
+  }
+);

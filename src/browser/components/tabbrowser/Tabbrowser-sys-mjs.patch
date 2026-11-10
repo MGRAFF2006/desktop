@@ -492,7 +492,7 @@ diff --git a/browser/components/tabbrowser/Tabbrowser.sys.mjs b/browser/componen
  
      this.#handleTabMove(tab, () =>
 -      this.tabContainer.insertBefore(tab, tab.group.nextElementSibling)
-+      tab.group.after(tab)
++      this.documentGlobal.gZenFolders.placeUngroupedItem(tab, tab.group)
      );
    }
  
