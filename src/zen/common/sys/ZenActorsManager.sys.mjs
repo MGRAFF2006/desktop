@@ -19,6 +19,14 @@ let JSPROCESSACTORS = {};
  * available at https://firefox-source-docs.mozilla.org/dom/ipc/jsactors.html
  */
 let JSWINDOWACTORS = {
+  ZenNewTab: {
+    parent: { esModuleURI: "resource:///actors/ZenNewTabParent.sys.mjs" },
+    child: {
+      esModuleURI: "resource:///actors/ZenNewTabChild.sys.mjs",
+      events: { ZenNewTabRequest: { wantUntrusted: true, capture: true } },
+    },
+    matches: ["about:newtab", "about:home"],
+  },
   ZenInternalTheme: {
     parent: {
       esModuleURI: "resource:///actors/ZenInternalThemeParent.sys.mjs",
@@ -30,6 +38,8 @@ let JSWINDOWACTORS = {
       },
     },
     matches: [
+      "about:newtab",
+      "about:home",
       "about:addons",
       "about:config",
       "about:downloads",
@@ -43,7 +53,7 @@ let JSWINDOWACTORS = {
       "about:sessionrestore",
       "about:support",
       "about:welcomeback",
-    ].flatMap(page => [page, `${page}?*`]),
+    ].flatMap((page) => [page, `${page}?*`]),
   },
   ZenGlance: {
     parent: {

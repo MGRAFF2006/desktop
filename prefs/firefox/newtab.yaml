@@ -22,3 +22,7 @@
 
 - name: browser.translations.newSettingsUI.enable
   value: true
+
+# The native page does not use the Activity Stream startup cache.
+- name: browser.startup.homepage.abouthome_cache.enabled
+  value: false

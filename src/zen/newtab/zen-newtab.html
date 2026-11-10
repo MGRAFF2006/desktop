@@ -1,0 +1,129 @@
+<!doctype html>
+<!-- This Source Code Form is subject to the terms of the Mozilla Public
+   - License, v. 2.0. If a copy of the MPL was not distributed with this
+   - file, You can obtain one at http://mozilla.org/MPL/2.0/. -->
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="x-dns-prefetch-control" content="off" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'none'; script-src chrome:; style-src chrome: 'unsafe-inline'; img-src 'none'; connect-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'"
+    />
+    <title data-l10n-id="zen-newtab-title"></title>
+    <link rel="localization" href="browser/zen-newtab.ftl" />
+    <link rel="stylesheet" href="chrome://global/skin/in-content/common.css" />
+    <link
+      rel="stylesheet"
+      href="chrome://browser/content/zen-styles/zen-theme.css"
+    />
+    <link rel="stylesheet" href="chrome://browser/content/zen-newtab.css" />
+    <script
+      type="module"
+      src="chrome://browser/content/zen-newtab.mjs"
+    ></script>
+  </head>
+  <body>
+    <main id="zen-start">
+      <header>
+        <time id="clock"></time>
+        <p id="date"></p>
+      </header>
+      <form id="search-form" role="search">
+        <input
+          id="search"
+          type="search"
+          maxlength="2048"
+          data-l10n-id="zen-newtab-search"
+          autocomplete="off"
+          required
+        />
+        <button data-l10n-id="zen-newtab-search-button"></button>
+      </form>
+      <nav data-l10n-id="zen-newtab-links-label">
+        <ul id="links"></ul>
+        <button
+          id="add-link"
+          data-l10n-id="zen-newtab-add-link"
+          disabled
+        ></button>
+      </nav>
+      <details id="options">
+        <summary data-l10n-id="zen-newtab-customize"></summary>
+        <div class="options-body">
+          <label for="background" data-l10n-id="zen-newtab-background"></label>
+          <select id="background" disabled>
+            <option
+              value="theme"
+              data-l10n-id="zen-newtab-background-theme"
+            ></option>
+            <option
+              value="daybreak"
+              data-l10n-id="zen-newtab-background-daybreak"
+            ></option>
+            <option
+              value="nightfall"
+              data-l10n-id="zen-newtab-background-nightfall"
+            ></option>
+          </select>
+          <label
+            for="clock-format"
+            data-l10n-id="zen-newtab-clock-format"
+          ></label>
+          <select id="clock-format" disabled>
+            <option
+              value="system"
+              data-l10n-id="zen-newtab-clock-system"
+            ></option>
+            <option value="12" data-l10n-id="zen-newtab-clock-12"></option>
+            <option value="24" data-l10n-id="zen-newtab-clock-24"></option>
+          </select>
+          <label for="focus" data-l10n-id="zen-newtab-focus"></label>
+          <input
+            id="focus"
+            maxlength="160"
+            data-l10n-id="zen-newtab-focus-placeholder"
+            disabled
+          />
+          <p id="private-note" data-l10n-id="zen-newtab-private" hidden></p>
+        </div>
+      </details>
+      <p id="status" role="status"></p>
+    </main>
+    <dialog id="link-dialog" aria-labelledby="link-heading">
+      <form id="link-form">
+        <h2 id="link-heading" data-l10n-id="zen-newtab-link-heading"></h2>
+        <label for="link-title" data-l10n-id="zen-newtab-link-title"></label>
+        <input id="link-title" maxlength="60" required />
+        <label for="link-url" data-l10n-id="zen-newtab-link-url"></label>
+        <input
+          id="link-url"
+          type="url"
+          maxlength="2048"
+          placeholder="https://"
+          required
+        />
+        <p
+          id="link-error"
+          role="alert"
+          data-l10n-id="zen-newtab-link-error"
+          hidden
+        ></p>
+        <div class="dialog-buttons">
+          <button
+            id="delete-link"
+            type="button"
+            data-l10n-id="zen-newtab-delete"
+          ></button>
+          <button
+            id="cancel-link"
+            type="button"
+            data-l10n-id="zen-newtab-cancel"
+          ></button>
+          <button type="submit" data-l10n-id="zen-newtab-save"></button>
+        </div>
+      </form>
+    </dialog>
+  </body>
+</html>
