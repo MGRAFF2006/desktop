@@ -274,3 +274,64 @@ add_task(async function test_MirroredRootMovePreservesEmptyOrdinaryPeriphery() {
     }
   }
 });
+
+add_task(async function test_AdoptingExistingOrdinaryCounterpartWithoutIndex() {
+  await SpecialPowers.pushPrefEnv({
+    set: [["zen.window-sync.sync-only-pinned-tabs", false]],
+  });
+  let sourceTab;
+  try {
+    await withNewSyncedWindow(async win => {
+      sourceTab = gBrowser.addTrustedTab("about:blank", { inBackground: true });
+      await TestUtils.waitForCondition(
+        () => win.document.getElementById(sourceTab.id),
+        "An ordinary counterpart is present before adoption"
+      );
+      const counterpart = win.document.getElementById(sourceTab.id);
+      const strip = win.gZenWorkspaces.activeWorkspaceElement.tabsContainer;
+      const periphery = strip.querySelector(
+        "#tabbrowser-arrowscrollbox-periphery"
+      );
+      try {
+        Assert.ok(
+          gZenWorkspaces.currentWindowIsSyncing &&
+            win.gZenWorkspaces.currentWindowIsSyncing,
+          "Adoption exercises the existing-counterpart path"
+        );
+        const adopted = win.gBrowser.adoptTab(sourceTab, { selectTab: true });
+        Assert.equal(
+          adopted,
+          counterpart,
+          "Adoption reuses the existing ordinary counterpart"
+        );
+        Assert.equal(
+          strip.lastElementChild,
+          periphery,
+          "Adoption keeps the periphery last"
+        );
+        Assert.ok(
+          win.gBrowser.tabs.includes(counterpart),
+          "The adopted counterpart remains registered"
+        );
+        Assert.equal(
+          win.gBrowser.tabs[counterpart.index],
+          counterpart,
+          "The adopted counterpart keeps a valid native index"
+        );
+      } finally {
+        if (
+          counterpart.parentNode === strip &&
+          strip.lastElementChild !== periphery
+        ) {
+          strip.insertBefore(counterpart, periphery);
+          win.gBrowser.tabContainer._invalidateCachedTabs();
+        }
+      }
+    });
+  } finally {
+    if (sourceTab?.isConnected && !sourceTab.closing) {
+      await BrowserTestUtils.removeTab(sourceTab);
+    }
+    await SpecialPowers.popPrefEnv();
+  }
+});

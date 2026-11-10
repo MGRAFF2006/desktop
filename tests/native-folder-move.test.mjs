@@ -20,6 +20,10 @@ function nativeClass() {
     source.indexOf("  zenIsInPinnedSection("),
     source.indexOf("  get _numVisiblePinTabsWithoutCollapsed()")
   );
+  const method = name => {
+    const begin = source.indexOf(name);
+    return source.slice(begin, source.indexOf("\n  /**", begin));
+  };
   return vm.runInNewContext(`(class Tabbrowser {
     static isTab(item) { return !!item?.isTab; }
     static isTabGroup(item) { return !!item?.isGroup; }
@@ -28,6 +32,9 @@ function nativeClass() {
     #handleTabMove(item, callback) { callback(); }
     ${helpers}
     ${source.slice(start, end)}
+    ${method("  moveTabBefore(")}
+    ${method("  moveTabAfter(")}
+    ${method("  #moveTabNextTo(\n")}
   })`);
 }
 function node(name, parent = null) {
@@ -106,6 +113,67 @@ for (const label of [false, true]) {
         assert.equal(child.group, folder);
         assert.equal(anchor.group, folder);
       }
+    }
+  );
+}
+
+for (const [name, move] of [
+  ["no index", (browser, tab) => browser.moveTabTo(tab, {})],
+  ["past the end", (browser, tab) => browser.moveTabTo(tab, { tabIndex: 100 })],
+  [
+    "after a missing neighbour",
+    (browser, tab) => browser.moveTabAfter(tab, null),
+  ],
+  [
+    "before a missing neighbour",
+    (browser, tab) => browser.moveTabBefore(tab, null),
+  ],
+]) {
+  test(
+    `native ordinary root move ${name} preserves the periphery`,
+    { skip: !source },
+    () => {
+      const Native = nativeClass();
+      const normal = {
+        children: [],
+        insertBefore(item, before) {
+          if (item.parentElement) {
+            item.parentElement.children.splice(
+              item.parentElement.children.indexOf(item),
+              1
+            );
+          }
+          const index = before
+            ? this.children.indexOf(before)
+            : this.children.length;
+          assert.ok(index >= 0);
+          this.children.splice(index, 0, item);
+          item.parentElement = this;
+        },
+      };
+      normal.appendChild = item => normal.insertBefore(item, null);
+      const periphery = { id: "tabbrowser-arrowscrollbox-periphery" };
+      const tab = node("ordinary");
+      Object.assign(tab, { isTab: true, index: 0 });
+      normal.insertBefore(tab, null);
+      normal.insertBefore(periphery, null);
+      const browser = new Native();
+      browser.tabs = [tab];
+      browser.documentGlobal = {
+        gZenGlanceManager: { getTabOrGlanceParent: item => item },
+        gZenFolders: { canDropElement: () => true },
+        gZenWorkspaces: { activeWorkspaceStrip: normal },
+      };
+      // The custom native tab-container hook owns root structural placement.
+      browser.tabContainer = {
+        pinnedTabsContainer: { children: [] },
+        insertBefore: (item, before) =>
+          normal.insertBefore(item, before || periphery),
+        appendChild: item => normal.insertBefore(item, periphery),
+      };
+      move(browser, tab);
+      assert.deepEqual(normal.children, [tab, periphery]);
+      assert.equal(tab.parentElement, normal);
     }
   );
 }

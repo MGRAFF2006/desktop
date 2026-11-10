@@ -26,11 +26,14 @@ add_task(async function test_mixed_tree_native_pin_and_position_contracts() {
   ordinaryFolder.addTabs([laterPin]);
   registerCleanupFunction(async () => {
     for (const folder of [pinnedFolder, ordinaryFolder]) {
-      if (folder.isConnected) await removeFolder(folder);
+      if (folder.isConnected) {
+        await removeFolder(folder);
+      }
     }
     for (const tab of tabs) {
-      if (tab.isConnected && !tab.closing)
+      if (tab.isConnected && !tab.closing) {
         await BrowserTestUtils.removeTab(tab);
+      }
     }
   });
 
@@ -127,3 +130,55 @@ add_task(async function test_mixed_tree_native_pin_and_position_contracts() {
     ok(!ordinaryFolder.pinned, "Indexed label move preserves its own marker");
   }
 });
+
+add_task(
+  async function test_OrdinaryRootFallbackMovesPreserveNativeRegistration() {
+    await gZenWorkspaces.promiseInitialized;
+    const strip = gZenWorkspaces.activeWorkspaceElement.tabsContainer;
+    const periphery = strip.querySelector(
+      "#tabbrowser-arrowscrollbox-periphery"
+    );
+    for (const [name, move] of [
+      ["no index", tab => gBrowser.moveTabTo(tab, {})],
+      [
+        "past the end",
+        tab => gBrowser.moveTabTo(tab, { tabIndex: gBrowser.tabs.length + 10 }),
+      ],
+      ["after a missing neighbour", tab => gBrowser.moveTabAfter(tab, null)],
+      ["before a missing neighbour", tab => gBrowser.moveTabBefore(tab, null)],
+    ]) {
+      const tab = BrowserTestUtils.addTab(gBrowser, "about:blank");
+      try {
+        Assert.equal(
+          strip.lastElementChild,
+          periphery,
+          `${name}: insertion starts with a valid periphery`
+        );
+        move(tab);
+        Assert.equal(
+          strip.lastElementChild,
+          periphery,
+          `${name}: the periphery stays last`
+        );
+        Assert.ok(
+          gBrowser.tabs.includes(tab),
+          `${name}: the tab remains registered`
+        );
+        Assert.equal(
+          gBrowser.tabs[tab.index],
+          tab,
+          `${name}: the native index still identifies the tab`
+        );
+      } finally {
+        // Preserve normal native cleanup even when an old implementation fails.
+        if (tab.parentNode === strip && strip.lastElementChild !== periphery) {
+          strip.insertBefore(tab, periphery);
+          gBrowser.tabContainer._invalidateCachedTabs();
+        }
+        if (tab.isConnected && !tab.closing) {
+          await BrowserTestUtils.removeTab(tab);
+        }
+      }
+    }
+  }
+);
