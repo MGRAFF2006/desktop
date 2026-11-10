@@ -260,8 +260,9 @@ export class nsZenSiteDataPanel {
     darken.disabled = !available;
     this.document.getElementById("zen-site-data-custom-css").disabled =
       !available;
-    const active =
-      available && lazy.gZenBoostsManager.loadActiveBoostFromStore(domain);
+    const active = available
+      ? lazy.gZenBoostsManager.loadActiveBoostFromStore(domain)
+      : null;
     darken.setAttribute("checked", !!active?.boostEntry.boostData.smartInvert);
     darken.setAttribute(
       "aria-pressed",
