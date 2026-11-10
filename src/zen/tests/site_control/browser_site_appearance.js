@@ -148,6 +148,18 @@ add_task(async function site_panel_opens_existing_css_directly() {
           editor.boostEditor?.codeEditorReady &&
           editor.document.documentElement.getAttribute("editor") === "code"
       );
+      await editor.document.l10n.ready;
+      const workspaceColors = editor.document.getElementById(
+        "zen-boost-magic-theme"
+      );
+      ok(
+        workspaceColors.getAttribute("tooltiptext"),
+        "The workspace color action has a localized tooltip"
+      );
+      ok(
+        workspaceColors.getAttribute("aria-label"),
+        "The workspace color icon has a localized accessible name"
+      );
       await editor.boostEditor.onUpdateZapButtonVisual();
       is(
         editor.document.documentElement.getAttribute("editor"),
