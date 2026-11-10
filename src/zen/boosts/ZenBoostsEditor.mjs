@@ -1723,6 +1723,10 @@ ${cssSelector} {
     // The code editor needs time to initialize
     await this.initCodeEditor();
     this.updateAllVisuals();
+    if (this.editorWindow.openCode) {
+      this.onCodeButtonPressed();
+      this.editorWindow._editor.focus();
+    }
   }
 
   updateAllVisuals() {

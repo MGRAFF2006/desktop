@@ -44,7 +44,11 @@ export class nsZenBoostStyles {
   invalidateStyleForDomain(domain) {
     if (this.#stylesCache.has(domain)) {
       const { uri } = this.#stylesCache.get(domain);
-      lazy.styleSheetService.unregisterSheet(uri, BOOST_SHEET_TYPE);
+      // These sheets are loaded per document by ZenBoostsChild, not globally
+      // registered with the stylesheet service.
+      if (lazy.styleSheetService.sheetRegistered(uri, BOOST_SHEET_TYPE)) {
+        lazy.styleSheetService.unregisterSheet(uri, BOOST_SHEET_TYPE);
+      }
       this.#stylesCache.delete(domain);
     }
   }

@@ -408,7 +408,9 @@ export class ZenBoostsChild extends JSWindowActorChild {
       this.#setSyncedField(
         browsingContext,
         "isZenBoostsInverted",
-        !!boostData.smartInvert
+        !!boostData.smartInvert &&
+          !this.document.defaultView.matchMedia("(forced-colors: active)")
+            .matches
       );
       if (boostData.enableColorBoost) {
         let primaryColor;

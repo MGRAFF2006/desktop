@@ -77,6 +77,21 @@
                         data-l10n-id="unified-extensions-manage-extensions"
                         hidden="true" />
       </vbox>
+      <vbox id="zen-site-appearance" class="zen-site-data-section" hidden="true">
+        <hbox class="zen-site-data-section-header">
+          <label data-l10n-id="zen-site-appearance" flex="1" />
+        </hbox>
+        <toolbarbutton id="zen-site-data-darken"
+                       class="subviewbutton"
+                       data-l10n-id="zen-site-appearance-darken"
+                       type="checkbox" autocheck="false" closemenu="none" />
+        <description data-l10n-id="zen-site-appearance-darken-description" />
+        <toolbarbutton id="zen-site-data-custom-css"
+                       class="subviewbutton"
+                       data-l10n-id="zen-site-appearance-custom-css" />
+        <description id="zen-site-appearance-private"
+                     data-l10n-id="zen-site-appearance-private" hidden="true" />
+      </vbox>
       <vbox class="zen-site-data-section">
         <hbox class="zen-site-data-section-header">
           <label data-l10n-id="zen-site-data-boosts" flex="1" />
