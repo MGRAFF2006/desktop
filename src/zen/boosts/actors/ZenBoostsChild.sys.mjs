@@ -81,7 +81,10 @@ export class ZenBoostsChild extends JSWindowActorChild {
   }
 
   didDestroy() {
-    this.#forcedColors?.removeEventListener("change", this.#onForcedColorsChange);
+    this.#forcedColors?.removeEventListener(
+      "change",
+      this.#onForcedColorsChange
+    );
     this.#forcedColors = null;
     if (this.#currentState === ZenBoostsChild.STATES.ZAP) {
       this.disableZapMode();
@@ -394,7 +397,9 @@ export class ZenBoostsChild extends JSWindowActorChild {
     }
 
     if (!this.#forcedColors) {
-      this.#forcedColors = this.document.defaultView.matchMedia("(forced-colors: active)");
+      this.#forcedColors = this.document.defaultView.matchMedia(
+        "(forced-colors: active)"
+      );
       this.#forcedColors.addEventListener("change", this.#onForcedColorsChange);
     }
     const boost = await this.getWebsiteBoost();

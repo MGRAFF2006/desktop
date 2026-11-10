@@ -79,8 +79,12 @@ class nsZenBoostsManager {
     return null;
   }
 
-  /** Apply the native color inversion to this host, preserving its CSS and edits.
+  /**
+   * Apply native color inversion to this host, preserving its CSS and edits.
    * This is an explicit option for light sites, not a global page filter.
+   *
+   * @param {string} domain - Host whose active boost should be updated.
+   * @param {boolean} enabled - Whether to darken the host.
    */
   setSiteDarkening(domain, enabled) {
     let boost = this.loadActiveBoostFromStore(domain);
