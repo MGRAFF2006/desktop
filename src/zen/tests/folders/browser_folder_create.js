@@ -15,7 +15,12 @@ add_task(async function test_Create_Folder() {
     2,
     "Folder contains the tab and the empty tab created by Zen Folders"
   );
-  ok(tab.pinned, "Tab is pinned after folder creation");
+  ok(!tab.pinned, "Regular tab stays unpinned after folder creation");
+  ok(!folder.pinned, "Folder belongs to the regular workspace rows");
+  Assert.equal(
+    folder.parentElement,
+    gZenWorkspaces.activeWorkspaceElement.tabsContainer
+  );
   Assert.equal(folder.label, "test", "Folder label is set correctly");
   ok(!folder.collapsed, "Folder is expanded after creation");
   await removeFolder(folder);

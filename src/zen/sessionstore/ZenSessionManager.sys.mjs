@@ -17,10 +17,23 @@ ChromeUtils.defineESModuleGetters(lazy, {
     "moz-src:///browser/components/sessionstore/SessionStartup.sys.mjs",
   TabStateFlusher:
     "moz-src:///browser/components/sessionstore/TabStateFlusher.sys.mjs",
-  gWindowSyncEnabled: "resource:///modules/zen/ZenWindowSync.sys.mjs",
-  gSyncOnlyPinnedTabs: "resource:///modules/zen/ZenWindowSync.sys.mjs",
   DeferredTask: "resource://gre/modules/DeferredTask.sys.mjs",
 });
+
+// Restore decisions must follow preference changes in this running session.
+// WindowSync's exported booleans capture only its initial preference values.
+XPCOMUtils.defineLazyPreferenceGetter(
+  lazy,
+  "gWindowSyncEnabled",
+  "zen.window-sync.enabled",
+  true
+);
+XPCOMUtils.defineLazyPreferenceGetter(
+  lazy,
+  "gSyncOnlyPinnedTabs",
+  "zen.window-sync.sync-only-pinned-tabs",
+  true
+);
 
 XPCOMUtils.defineLazyPreferenceGetter(
   lazy,
@@ -374,7 +387,7 @@ export class nsZenSessionManager {
         this.log("Window sync disabled, restoring only pinned tabs");
         for (let i = 0; i < initialState.windows.length; i++) {
           let winData = initialState.windows[i];
-          winData.tabs = (winData.tabs || []).filter(tab => tab.pinned);
+          this.#filterUnpinnedTabs(winData);
         }
       }
       return initialState;
@@ -436,7 +449,7 @@ export class nsZenSessionManager {
     ) {
       this.log("Restoring only pinned tabs into windows");
       const sidebar = this.#sidebarWithoutCloning;
-      sidebar.tabs = (sidebar.tabs || []).filter(tab => tab.pinned);
+      this.#filterUnpinnedTabs(sidebar);
       this.#sidebar = sidebar;
     }
     // Restore all windows with the same sidebar object, this will
@@ -567,14 +580,35 @@ export class nsZenSessionManager {
     }
   }
 
+  #isFolderAnchor(tab, folders) {
+    return (
+      tab.zenIsEmpty &&
+      folders?.some(
+        folder => !folder.splitViewGroup && folder.id === tab.groupId
+      )
+    );
+  }
+
   /**
-   * Filters out all unpinned tabs and groups from the given window data object.
+   * Filters ordinary tab contents while retaining shared folder structure.
    *
    * @param {object} aWindow - The window data object to filter.
    */
   #filterUnpinnedTabs(aWindow) {
-    aWindow.tabs = aWindow.tabs.filter(tab => tab.pinned);
-    aWindow.groups = aWindow.groups?.filter(group => group.pinned);
+    // The anchor is structural: SessionStore needs it and the group state to
+    // materialize even an empty ordinary folder before Zen restores its tree.
+    aWindow.tabs = (aWindow.tabs || []).filter(
+      tab => tab.pinned || this.#isFolderAnchor(tab, aWindow.folders)
+    );
+    const retainedGroups = new Set(aWindow.tabs.map(tab => tab.groupId));
+    aWindow.groups = aWindow.groups?.filter(
+      group =>
+        group.pinned ||
+        retainedGroups.has(group.id) ||
+        aWindow.folders?.some(
+          folder => !folder.splitViewGroup && folder.id === group.id
+        )
+    );
   }
 
   /**
@@ -854,12 +888,16 @@ export class nsZenSessionManager {
     // tabs in the window data and keep the pinned tabs from the window data,
     // as they should be the same as the ones in the sidebar.
     if (lazy.gSyncOnlyPinnedTabs) {
-      let pinnedTabs = (sidebar.tabs || []).filter(tab => tab.pinned);
+      const shared = { ...sidebar };
+      this.#filterUnpinnedTabs(shared);
+      const sharedTabs = shared.tabs;
       let unpinedWindowTabs = [];
       if (!this.#shouldRestoreOnlyPinned) {
-        unpinedWindowTabs = (aWindowData.tabs || []).filter(tab => !tab.pinned);
+        unpinedWindowTabs = (aWindowData.tabs || []).filter(
+          tab => !tab.pinned && !this.#isFolderAnchor(tab, sidebar.folders)
+        );
       }
-      aWindowData.tabs = [...pinnedTabs, ...unpinedWindowTabs];
+      aWindowData.tabs = [...sharedTabs, ...unpinedWindowTabs];
 
       // We restore ALL the split view data in the sidebar, if the group doesn't exist in the window,
       // it should be a no-op anyways.
@@ -879,7 +917,8 @@ export class nsZenSessionManager {
       aWindowData.groups = sidebar.groups;
     }
 
-    // Folders are always pinned, so we dont need to check for the pinned state here.
+    // Folder metadata is shared even when ordinary tab contents are local.
+    // This also retains the parent chain of pinned tabs in ordinary folders.
     aWindowData.folders = sidebar.folders;
     aWindowData.spaces = sidebar.spaces;
     this.log("Restored sidebar data into window", {

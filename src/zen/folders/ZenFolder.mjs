@@ -68,7 +68,7 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
 
   connectedCallback() {
     super.connectedCallback();
-    this.labelElement.pinned = true;
+    this.labelElement.pinned = this.pinned;
     if (this.#initialized) {
       return;
     }
@@ -155,19 +155,28 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
     gZenFolders.createFolder([], {
       renameFolder: !gZenUIManager.testingEnabled,
       label: "Subfolder",
+      pinned: this.pinned,
       insertAfter: this.groupContainer.lastElementChild,
     });
   }
 
   async unpackTabs() {
     this.collapsed = false;
-    for (let tab of this.allItems.reverse()) {
-      tab = tab.group.hasAttribute("split-view-group") ? tab.group : tab;
-      if (tab.hasAttribute("zen-empty-tab")) {
-        gBrowser.removeTab(tab);
-      } else {
-        gBrowser.ungroupTab(tab);
-      }
+    const parentFolder = this.group;
+    const items = this.allItems.filter(
+      item => !item.hasAttribute("zen-empty-tab")
+    );
+    // Move whole child folders with native notifications. Nested rows retain
+    // sibling order; extracted roots rejoin their own physical section.
+    for (const item of items) {
+      gBrowser.zenHandleTabMove(item, () =>
+        gZenFolders.placeUngroupedItem(item, this, true)
+      );
+    }
+    gBrowser.tabContainer._invalidateCachedTabs();
+    await this.delete();
+    if (parentFolder?.collapsed) {
+      gZenFolders.relayoutCollapsedFolders();
     }
   }
 
@@ -205,17 +214,16 @@ export class nsZenFolder extends MozTabbrowserTabGroup {
   }
 
   get pinned() {
-    return this.isZenFolder;
+    // Profiles written before ordinary folders existed contain no marker.
+    return this.getAttribute("zen-folder-pinned") !== "false";
   }
 
-  /**
-   * Intentionally ignore attempts to change the pinned state.
-   * ZenFolder instances determine their "pinned" status based on their type (isZenFolder)
-   * and do not support being pinned or unpinned via this setter.
-   * This no-op setter ensures compatibility with interfaces expecting a pinned property,
-   * while preserving the invariant that ZenFolders cannot have their pinned state changed externally.
-   */
-  set pinned(value) {}
+  set pinned(value) {
+    this.setAttribute("zen-folder-pinned", String(!!value));
+    if (this.labelElement) {
+      this.labelElement.pinned = !!value;
+    }
+  }
 
   get iconURL() {
     return this.icon.querySelector("image")?.getAttribute("href") || "";

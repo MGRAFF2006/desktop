@@ -260,8 +260,8 @@ class nsZenWorkspaces {
 
   #initializeEmptyTab() {
     for (const tab of gBrowser.tabs) {
-      // Check if session store has an empty tab
-      if (tab.hasAttribute("zen-empty-tab") && !tab.pinned) {
+      // Folder anchors use the same marker, but belong to their restored tree.
+      if (tab.hasAttribute("zen-empty-tab") && !tab.pinned && !tab.group) {
         this.log("Found existing empty tab from session store!");
         this._emptyTab = tab;
         return;
@@ -2041,7 +2041,7 @@ class nsZenWorkspaces {
       (this._emptyTab.closing || !this._emptyTab.isConnected)
     ) {
       this._emptyTab = gBrowser.tabs.find(
-        tab => tab.hasAttribute("zen-empty-tab") && !tab.closing
+        tab => tab.hasAttribute("zen-empty-tab") && !tab.closing && !tab.group
       );
     }
     const emptyTab = this._emptyTab;
@@ -3680,6 +3680,14 @@ class nsZenWorkspaces {
   }
 
   fixTabInsertLocation(tab) {
+    if (!tab.hasAttribute("zen-essential")) {
+      for (let group = tab.group; group; group = group.group) {
+        if (group.isZenFolder) {
+          // Explicit tree placement takes precedence over the child's flag.
+          return;
+        }
+      }
+    }
     if (tab.hasAttribute("zen-essential")) {
       // Essential tabs should always be inserted at the end of the essentials section
       const essentialsSection = this.getEssentialsSection(tab);

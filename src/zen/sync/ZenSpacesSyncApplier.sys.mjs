@@ -105,7 +105,11 @@ class nsZenSpacesSyncApplier {
       if (!data) {
         continue;
       }
-      if (data.pinned === false && !lazy.syncNormalTabs) {
+      if (
+        data.pinned === false &&
+        !lazy.syncNormalTabs &&
+        record.cleartext.kind !== RECORD_KINDS.FOLDER
+      ) {
         if (
           record.cleartext.kind === RECORD_KINDS.TAB &&
           syncableTabUrl(data.url)
@@ -403,6 +407,19 @@ class nsZenSpacesSyncApplier {
         if (!(await this.#confirmRemoteSpaceDelete(win, uuid))) {
           continue;
         }
+        if (
+          !lazy.syncNormalTabs &&
+          win.gZenWorkspaces.allStoredTabs.some(
+            tab =>
+              !tab.pinned &&
+              !tab.hasAttribute("zen-empty-tab") &&
+              tab.getAttribute("zen-workspace-id") === uuid
+          )
+        ) {
+          throw new Error(
+            "remote workspace deletion deferred while ordinary tabs are opted out"
+          );
+        }
         await win.gZenWorkspaces.removeWorkspace(uuid);
       } catch (e) {
         fail(record, e);
@@ -437,6 +454,15 @@ class nsZenSpacesSyncApplier {
 
   /* Mark: folders */
 
+  #folderRootContainer(win, folder, workspaceUuid) {
+    const workspace = win.gZenWorkspaces.workspaceElement(
+      workspaceUuid || win.gZenWorkspaces.activeWorkspace
+    );
+    return folder.pinned
+      ? workspace?.pinnedTabsContainer
+      : workspace?.tabsContainer;
+  }
+
   async #applyFolders(win, folders, fail) {
     // Parents before children so nesting targets exist.
     const depths = new Map(folders.map(f => [f.key, f.data.parentFolderId]));
@@ -466,6 +492,7 @@ class nsZenSpacesSyncApplier {
             workspaceId:
               data.workspaceUuid || win.gZenWorkspaces.activeWorkspace,
             isLiveFolder: !!data.live,
+            pinned: data.pinned !== false,
             collapsed: true,
           });
         } else if (data.name && folder.label !== data.name) {
@@ -487,12 +514,25 @@ class nsZenSpacesSyncApplier {
           );
         }
 
+        folder.pinned = data.pinned !== false;
         const desiredParent = data.parentFolderId
           ? this.#itemIn(win, data.parentFolderId)
           : null;
         const currentParent = folder.group;
+        const rootContainer = this.#folderRootContainer(
+          win,
+          folder,
+          data.workspaceUuid
+        );
         if ((currentParent?.id || null) !== (data.parentFolderId || null)) {
           if (desiredParent?.isZenFolder) {
+            if (
+              !win.gZenFolders.canDropElement(folder, { group: desiredParent })
+            ) {
+              throw new Error(
+                "synced folder exceeds nesting depth or would create a cycle"
+              );
+            }
             win.gBrowser.zenHandleTabMove(folder, () => {
               if (desiredParent.tabs.length) {
                 desiredParent.tabs[0].after(folder);
@@ -500,19 +540,33 @@ class nsZenSpacesSyncApplier {
                 desiredParent.appendChild(folder);
               }
             });
-          } else if (!data.parentFolderId && currentParent?.isZenFolder) {
-            const ws = data.workspaceUuid || win.gZenWorkspaces.activeWorkspace;
-            const container =
-              win.gZenWorkspaces.workspaceElement(ws)?.pinnedTabsContainer;
+          } else if (!data.parentFolderId) {
+            const container = rootContainer;
             if (container) {
               win.gBrowser.zenHandleTabMove(folder, () => {
                 container.insertBefore(
                   folder,
-                  container.querySelector(".pinned-tabs-container-separator")
+                  container.querySelector(
+                    ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+                  )
                 );
               });
             }
           }
+        }
+        if (
+          !data.parentFolderId &&
+          rootContainer &&
+          folder.parentNode !== rootContainer
+        ) {
+          win.gBrowser.zenHandleTabMove(folder, () => {
+            rootContainer.insertBefore(
+              folder,
+              rootContainer.querySelector(
+                ".pinned-tabs-container-separator, #tabbrowser-arrowscrollbox-periphery"
+              )
+            );
+          });
         }
         if (
           data.workspaceUuid &&
@@ -542,6 +596,22 @@ class nsZenSpacesSyncApplier {
         const folder = this.#itemIn(win, folderId);
         if (!folder?.isZenFolder) {
           continue;
+        }
+        if (!lazy.syncNormalTabs) {
+          // Folder tombstones must obey the same opt-out as tab tombstones,
+          // including ordinary descendants of legacy pinned folders.
+          for (const tab of [...folder.tabs]) {
+            if (
+              !tab.pinned &&
+              !tab.hasAttribute("zen-empty-tab") &&
+              !tab.hasAttribute("zen-essential")
+            ) {
+              const item = tab.group?.hasAttribute("split-view-group")
+                ? tab.group
+                : tab;
+              this.#applyFolderMembership(win, item, null);
+            }
+          }
         }
         await folder.delete();
       } catch (e) {

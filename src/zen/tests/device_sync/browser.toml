@@ -17,6 +17,8 @@ support-files = [
 
 ["browser_folder_delete.js"]
 
+["browser_normal_folders.js"]
+
 ["browser_mirroring.js"]
 
 ["browser_mirroring_navigation.js"]
